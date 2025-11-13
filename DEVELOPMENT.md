@@ -1,6 +1,6 @@
-# Guia de Desenvolvimento Local - HelpFlow
+# Guia de Desenvolvimento Local - Flashfire
 
-Este guia descreve como configurar o ambiente para rodar o projeto HelpFlow localmente, utilizando Next.js, Prisma, Supabase e NextAuth.js.
+Este guia descreve como configurar o ambiente para rodar o projeto Flashfire localmente, utilizando Next.js, Prisma, Supabase e NextAuth.js.
 
 ## 1. Pré-requisitos
 
@@ -14,8 +14,8 @@ Este guia descreve como configurar o ambiente para rodar o projeto HelpFlow loca
 
 1.  **Clone o repositório:**
     ```bash
-    git clone [https://github.com/tharcio09/helpflow.git](https://github.com/tharcio09/helpflow.git) # Substitua pela URL correta do seu repo
-    cd helpflow
+    git clone [https://github.com/tharcio09/flashfire.git](https://github.com/tharcio09/flashfire.git) # Substitua pela URL correta do seu repo
+    cd flashfire
     ```
 
 2.  **Instale as dependências:**
@@ -66,7 +66,7 @@ Este guia descreve como configurar o ambiente para rodar o projeto HelpFlow loca
 
 1.  **Crie uma OAuth App no GitHub:**
     * Vá para `GitHub` > `Settings` > `Developer settings` > `OAuth Apps` > `New OAuth App`.
-    * **Application name:** `HelpFlow` (ou similar)
+    * **Application name:** `Flashfire` (ou similar)
     * **Homepage URL:** `http://localhost:3000`
     * **Authorization callback URL:** `http://localhost:3000/api/auth/callback/github`
     * Registre a aplicação.

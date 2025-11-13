@@ -5,46 +5,86 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("POSTGRES_PRISMA_URL")
 }
 
 // Modelo para os Usuários
 model User {
-  id        String   @id @default(cuid())
-  name      String?
-  email     String?  @unique
-  image     String?
+  id            String   @id @default(cuid())
+  name          String?
+  email         String?  @unique
+  image         String?
   emailVerified DateTime?
-  role      Role     @default(CLIENT)
+  role          Role     @default(CUSTOMER)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  birthDate     DateTime?
+  address       String?
+  phone         String?
 
-  tickets   Ticket[]
-  accounts  Account[]
-  sessions  Session[]
+  orders        Order[]
+  accounts      Account[]
+  sessions      Session[]
 }
 
-// Modelo para os Tickets de Suporte
-model Ticket {
+// Modelo para os Produtos
+model Product {
   id          String   @id @default(cuid())
-  title       String
+  name        String
   description String
-  status      Status   @default(OPEN)
+  price       Decimal
+  discountPrice Decimal?
+  stock       Int      @default(0)
+  images      String[]
+  category    String
+  isFlashSale Boolean  @default(false)
+  saleStartTime DateTime?
+  saleEndTime   DateTime?
+  isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  userId    String // Chave para conectar o Ticket ao User
-  author    User   @relation(fields: [userId], references: [id])
+  orderItems  OrderItem[]
+}
+
+// Modelo para os Pedidos
+model Order {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  status      OrderStatus @default(PENDING)
+  totalAmount Decimal
+  items       OrderItem[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Modelo para os Itens dos Pedidos
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Decimal  // Preço no momento da compra
+  
+  @@unique([orderId, productId])
 }
 
 // Tipos pré-definidos para os papéis e status
 enum Role {
-  CLIENT
-  AGENT
+  CUSTOMER
+  SELLER
+  ADMIN
 }
 
-enum Status {
-  OPEN
-  IN_PROGRESS
-  CLOSED
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  SHIPPED
+  DELIVERED
+  CANCELLED
 }
 
 // --- Modelos necessários para a Autenticação (NextAuth.js) ---

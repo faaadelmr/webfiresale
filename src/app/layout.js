@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "HelpFlow - Sistema de HelpDesk",
-  description: "Gerencie seus chamados de suporte de forma eficiente.",
+  title: "Flashfire - Ecommerce Flash Sale",
+  description: "Compre os melhores produtos com descontos imperdíveis em nossas flash sales.",
 };
 
 export default function RootLayout({ children }) {

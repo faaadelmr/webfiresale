@@ -1,42 +1,51 @@
-# 🚀 HelpFlow: Sistema de HelpDesk Completo
+# 🔥 Flashfire: Ecommerce de Flash Sales
 
-![Screenshot da Página de Detalhes de um Ticket no HelpFlow](public/screenshot.PNG) 
+![Screenshot da Página Principal do Flashfire](public/screenshot.PNG)
 ## 🌟 Visão Geral
 
-O HelpFlow é uma aplicação web Full-Stack robusta de sistema de HelpDesk (chamados), projetada para simplificar a comunicação e o gerenciamento de solicitações entre clientes e equipes de suporte (agentes). Desenvolvido com tecnologias modernas, o HelpFlow oferece uma solução eficiente e segura para o acompanhamento de problemas e tarefas.
+O Flashfire é uma aplicação web Full-Stack de ecommerce especializada em flash sales (vendas relâmpago), projetada para oferecer produtos com descontos imperdíveis por tempo limitado. Desenvolvido com tecnologias modernas, o Flashfire oferece uma solução eficiente e segura para compras online com descontos exclusivos.
 
-Este projeto demonstra habilidades sólidas em desenvolvimento Full-Stack, gerenciamento de banco de dados, autenticação e autorização baseada em papéis.
+Este projeto demonstra habilidades sólidas em desenvolvimento Full-Stack, gerenciamento de banco de dados, autenticação, e-commerce e gerenciamento de produtos em promoção.
 
-**[➡️ Acesse a versão ao vivo aqui!](https://helpflow.vercel.app/)** 
+**[➡️ Acesse a versão ao vivo aqui!](https://flashfire.vercel.app/)**
 
 ---
 
 ## ✨ Funcionalidades Principais
 
 * **Autenticação Segura:** Login de usuários via GitHub (OAuth), garantindo acesso fácil e seguro.
-* **Gerenciamento de Usuários:** Distinção entre dois tipos de usuários:
-* **Clientes:** Podem criar novos tickets e visualizar apenas os seus próprios tickets.
-* **Agentes:** Possuem acesso a todos os tickets, podendo visualizar detalhes, atualizar o status (Aberto, Em Progresso, Fechado) e deletar tickets.
-* **Criação de Tickets:** Clientes podem abrir novos chamados de forma intuitiva, fornecendo título e descrição detalhada do problema.
-* **Dashboard Interativo:** Visão geral dos tickets, com listagem dinâmica e exibição do status atual (atualização em tempo real após criação).
-* **Detalhes do Ticket:** Página dedicada para cada ticket, mostrando informações completas e opções de gerenciamento para agentes.
-* **API RESTful:** Backend eficiente para todas as operações CRUD (Create, Read, Update, Delete) de tickets.
+* **Gerenciamento de Usuários:** Distinção entre diferentes tipos de usuários:
+* **Clientes:** Podem navegar pelos produtos, adicionar ao carrinho e fazer compras.
+* **Vendedores:** Podem gerenciar seus produtos e monitorar vendas.
+* **Administradores:** Têm controle total sobre a plataforma.
+* **Catálogo de Produtos:** Visualização intuitiva de produtos com preços e detalhes.
+* **Sistema de Flash Sales:** Produtos com preços reduzidos por tempo limitado.
+* **Carrinho de Compras:** Sistema de adição e gerenciamento de itens no carrinho.
+* **Sistema de Pedidos:** Controle completo de pedidos e status de entrega.
+* **API RESTful:** Backend eficiente para todas as operações CRUD (Create, Read, Update, Delete) de produtos e pedidos.
 
 ---
 
 ## 👥 Papéis de Usuário (Roles)
 
-O sistema implementa uma lógica de autorização baseada em dois papéis:
+O sistema implementa uma lógica de autorização baseada em três papéis:
 
-* **`CLIENT` (Cliente):**
-    * Papel padrão para **todos os novos usuários** que se cadastram via GitHub (definido via `@default(CLIENT)` no schema Prisma).
-    * Pode criar novos tickets.
-    * Pode visualizar apenas os tickets que criou.
-* **`AGENT` (Agente):**
-    * **Atribuição:** Atualmente, a promoção de um usuário para `AGENT` é feita **manualmente** pelo administrador diretamente no banco de dados (Supabase).
-    * Pode visualizar **todos** os tickets de todos os clientes.
-    * Pode atualizar o status (`Aberto`, `Em Progresso`, `Fechado`) de qualquer ticket.
-    * Pode deletar qualquer ticket.
+* **`CUSTOMER` (Cliente):**
+    * Papel padrão para **todos os novos usuários** que se cadastram via GitHub (definido via `@default(CUSTOMER)` no schema Prisma).
+    * Pode visualizar produtos.
+    * Pode adicionar produtos ao carrinho e fazer compras.
+    * Pode visualizar e gerenciar seus próprios pedidos.
+* **`SELLER` (Vendedor):**
+    * **Atribuição:** A promoção de um usuário para `SELLER` é feita **manualmente** pelo administrador diretamente no banco de dados.
+    * Pode gerenciar seus próprios produtos.
+    * Pode visualizar estatísticas de vendas.
+    * Pode criar flash sales para seus produtos.
+* **`ADMIN` (Administrador):**
+    * **Atribuição:** Atribuição feita **manualmente** pelo administrador principal.
+    * Pode gerenciar todos os produtos de todos os vendedores.
+    * Pode gerenciar todos os pedidos.
+    * Pode gerenciar todos os usuários.
+    * Pode criar e gerenciar flash sales para toda a plataforma.
 
 ---
 
@@ -48,7 +57,6 @@ O sistema implementa uma lógica de autorização baseada em dois papéis:
 * **Autenticação:** [NextAuth.js](https://next-auth.js.org/) - Sistema completo de autenticação com provedores OAuth (GitHub).
 * **ORM:** [Prisma](https://www.prisma.io/) - Gerenciamento de banco de dados, modelagem e consultas.
 * **Banco de Dados:** [Supabase](https://supabase.com/) (PostgreSQL) - Backend como serviço (BaaS), com banco de dados gerenciado.
-* **Animações (Opcional):** [Framer Motion](https://www.framer.com/motion/) (se aplicável, adicione aqui)
 
 [![My Skills](https://skillicons.dev/icons?i=nextjs,react,tailwind,prisma,supabase)](https://skillicons.dev)
 
@@ -57,12 +65,12 @@ O sistema implementa uma lógica de autorização baseada em dois papéis:
 
 ## 🚀 Como Rodar Localmente
 
-Para configurar e executar o HelpFlow no seu ambiente de desenvolvimento:
+Para configurar e executar o Flashfire no seu ambiente de desenvolvimento:
 
 1.  **Clone o repositório:**
     ```bash
-    git clone [https://github.com/tharcio09/helpflow.git](https://github.com/tharcio09/helpflow.git)
-    cd helpflow
+    git clone [https://github.com/tharcio09/flashfire.git](https://github.com/tharcio09/flashfire.git)
+    cd flashfire
     ```
 
 2.  **Siga as instruções detalhadas de configuração:**
