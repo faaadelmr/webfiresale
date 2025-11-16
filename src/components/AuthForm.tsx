@@ -4,6 +4,7 @@
 import React, { useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import OAuthButtons from '@/components/OAuthButtons'
 
 type AuthFormType = 'signin' | 'signup'
 
@@ -146,6 +147,13 @@ const AuthForm: React.FC<AuthFormProps> = ({ type }) => {
                 </button>
               </div>
             </form>
+
+            {type === 'signin' && (
+              <>
+                <div className="divider">OR</div>
+                <OAuthButtons callbackUrl="/dashboard" />
+              </>
+            )}
 
             <div className="text-center mt-4">
               {type === 'signin' ? (

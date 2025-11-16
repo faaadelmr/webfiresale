@@ -1,10 +1,18 @@
 // src/app/api/auth/[...nextauth]/route.ts
 import NextAuth from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
-import { validateUser } from '@/lib/auth'
+import GoogleProvider from 'next-auth/providers/google'
+import FacebookProvider from 'next-auth/providers/facebook'
+import InstagramProvider from 'next-auth/providers/instagram'
+import { validateUser, findOrCreateOAuthUser } from '@/lib/auth'
+import { authSettings } from '@/lib/authSettings'
 
-export const authOptions = {
-  providers: [
+// Build dynamic providers array based on authSettings
+const providers = [];
+
+// Add Credentials provider if enabled
+if (authSettings.providers.credentials) {
+  providers.push(
     CredentialsProvider({
       name: 'Credentials',
       credentials: {
@@ -25,34 +33,108 @@ export const authOptions = {
         return user
       }
     })
-  ],
+  );
+}
+
+// Add Google provider if enabled
+if (authSettings.providers.google) {
+  providers.push(
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    })
+  );
+}
+
+// Add Facebook provider if enabled
+if (authSettings.providers.facebook) {
+  providers.push(
+    FacebookProvider({
+      clientId: process.env.FACEBOOK_CLIENT_ID!,
+      clientSecret: process.env.FACEBOOK_CLIENT_SECRET!,
+    })
+  );
+}
+
+// Add Instagram provider if enabled
+if (authSettings.providers.instagram) {
+  providers.push(
+    InstagramProvider({
+      clientId: process.env.INSTAGRAM_CLIENT_ID!,
+      clientSecret: process.env.INSTAGRAM_CLIENT_SECRET!,
+    })
+  );
+}
+
+export const authOptions = {
+  providers,
   callbacks: {
-    async jwt({ token, user }: { token: any; user: any }) {
+    async jwt({ token, user, account }: { token: any; user: any; account: any }) {
       if (user) {
-        token.id = user.id
-        token.name = user.name
-        token.email = user.email
+        token.id = user.id;
+        token.name = user.name;
+        token.email = user.email;
+        token.provider = user.provider || (account ? account.provider : 'credentials');
       }
-      return token
+      return token;
     },
     async session({ session, token }: { session: any; token: any }) {
       if (token && session.user) {
-        session.user.id = token.id as string
-        session.user.name = token.name
-        session.user.email = token.email
+        session.user.id = token.id as string;
+        session.user.name = token.name;
+        session.user.email = token.email;
+        session.user.provider = token.provider;
       }
-      return session
+      return session;
+    },
+    async signIn(params: {
+      user: any;
+      account: any;
+      profile?: any;
+      email?: { verificationRequest?: boolean };
+      credentials?: any
+    }) {
+      const { user, account, profile, email } = params;
+
+      // Handle OAuth sign-in
+      if (account?.provider && account.provider !== 'credentials' && profile) {
+        try {
+          // Check if the user has an email address
+          if (!profile?.email) {
+            console.error('OAuth profile missing email:', profile);
+            return false;
+          }
+
+          // Find or create user in database
+          const oauthUser = await findOrCreateOAuthUser(profile, account.provider);
+
+          // Optional: You can return false to reject the sign-in if needed
+          // For example, if you want to block certain email domains:
+          // if (profile.email && profile.email.endsWith('@blockeddomain.com')) return false;
+
+          return true; // Allow sign in
+        } catch (error) {
+          console.error('OAuth sign-in error:', error);
+          return false; // Reject sign in on error
+        }
+      }
+
+      // For credentials sign-in, allow it to proceed through the normal flow
+      return true;
     }
   },
   pages: {
     signIn: '/signin',
     signOut: '/signin',
+    verifyRequest: '/signin', // Used for email verification
   },
   secret: process.env.NEXTAUTH_SECRET,
   session: {
     strategy: 'jwt' as const,
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
+  // Allow sign-in for OAuth without email verification requirement
+  // This is handled through the signIn callback instead
 }
 
 const handler = NextAuth(authOptions)
