@@ -10,8 +10,8 @@ interface OAuthButtonsProps {
 
 export default function OAuthButtons({ callbackUrl }: OAuthButtonsProps) {
   const handleOAuthSignIn = (provider: string) => {
-    signIn(provider, { 
-      callbackUrl: callbackUrl || '/dashboard' 
+    signIn(provider, {
+      callbackUrl: callbackUrl || '/api/auth/role-redirect'
     });
   };
 

@@ -4,7 +4,7 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import GoogleProvider from 'next-auth/providers/google'
 import FacebookProvider from 'next-auth/providers/facebook'
 import InstagramProvider from 'next-auth/providers/instagram'
-import { validateUser, findOrCreateOAuthUser } from '@/lib/auth'
+import { validateUser, findOrCreateOAuthUser, clearTempPasswordOnLogin } from '@/lib/auth'
 import { authSettings } from '@/lib/authSettings'
 import prisma from '@/lib/prisma'
 
@@ -30,6 +30,9 @@ if (authSettings.providers.credentials) {
         if (!user) {
           return null
         }
+
+        // Clear tempPassword when user logs in successfully
+        await clearTempPasswordOnLogin(credentials.email);
 
         return user
       }
@@ -89,6 +92,12 @@ export const authOptions = {
           where: { email: token.email }
         });
 
+        // Check if user is soft-deleted, if so don't return user data
+        if (dbUser && (!dbUser.isActive || dbUser.deletedAt)) {
+          // Return null to invalidate the session
+          return {};
+        }
+
         if (dbUser) {
           token.id = dbUser.id;
           token.name = dbUser.name || dbUser.email.split('@')[0]; // Use email prefix as name if not set
@@ -101,6 +110,11 @@ export const authOptions = {
       return token;
     },
     async session({ session, token }: { session: any; token: any }) {
+      // If token is empty (user was soft-deleted), return null to invalidate session
+      if (!token.email || Object.keys(token).length === 0) {
+        return null;
+      }
+
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.name = token.name;
@@ -132,6 +146,11 @@ export const authOptions = {
           // Find or create user in database
           const oauthUser = await findOrCreateOAuthUser(profile, account.provider);
 
+          // If user was found/created, clear tempPassword on login
+          if (oauthUser) {
+            await clearTempPasswordOnLogin(profile.email);
+          }
+
           // Optional: You can return false to reject the sign-in if needed
           // For example, if you want to block certain email domains:
           // if (profile.email && profile.email.endsWith('@blockeddomain.com')) return false;
@@ -145,6 +164,19 @@ export const authOptions = {
 
       // For credentials sign-in, allow it to proceed through the normal flow
       return true;
+    },
+    async redirect({ url, baseUrl }: { url: string; baseUrl: string }) {
+      // Get the user's role from the JWT token
+      // This is called after the session is established
+      // We'll check the role and redirect appropriately
+      // For now, we'll return the default dashboard redirect
+      // The actual role-based redirect will be handled in middleware or other ways
+
+      // If the user is a customer, redirect to home page
+      // Otherwise, allow the default redirect to dashboard
+      // This requires access to the user's role, which is not directly available here
+      // So we'll need to implement this redirect logic after sign-in in the frontend
+      return baseUrl;
     }
   },
   pages: {

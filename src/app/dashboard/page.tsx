@@ -64,7 +64,7 @@ export default async function DashboardPage() {
                   <a href="/profile" className="btn btn-primary">Edit Profile</a>
                   <a href="/profile" className="btn btn-outline">Manage Address</a>
                   {session.user?.role === 'superadmin' && (
-                    <a href="/admin" className="btn btn-secondary">Admin Panel</a>
+                    <a href="/dashboard/users" className="btn btn-secondary">Manage Users</a>
                   )}
                 </div>
               </div>

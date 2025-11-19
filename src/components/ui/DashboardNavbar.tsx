@@ -12,10 +12,44 @@ export default function DashboardNavbar() {
     await signOut({ callbackUrl: '/signin' });
   };
 
+  // Determine menu items based on user role
+  const getMenuItems = () => {
+    if (!user?.role) return [];
+
+    switch (user.role) {
+      case 'customer':
+        return [
+          { label: 'Home', href: '/' },
+          { label: 'Profile', href: '/profile' },
+          { label: 'Settings', href: '/settings' },
+          { label: 'Logout', onClick: handleSignOut },
+        ];
+      case 'admin':
+        return [
+          { label: 'Dashboard', href: '/dashboard' },
+          { label: 'Profile', href: '/profile' },
+          { label: 'Settings', href: '/settings' },
+          { label: 'Logout', onClick: handleSignOut },
+        ];
+      case 'superadmin':
+        return [
+          { label: 'Dashboard', href: '/dashboard' },
+          { label: 'User Management', href: '/dashboard/users' },
+          { label: 'Profile', href: '/profile' },
+          { label: 'Settings', href: '/settings' },
+          { label: 'Logout', onClick: handleSignOut },
+        ];
+      default:
+        return [{ label: 'Logout', onClick: handleSignOut }];
+    }
+  };
+
+  const menuItems = getMenuItems();
+
   return (
     <div className="navbar bg-base-100 shadow-md">
       <div className="flex-1">
-        <Link href="/dashboard" className="btn btn-ghost text-xl">WebFireSale</Link>
+        <Link href={user?.role === 'customer' ? '/' : '/dashboard'} className="btn btn-ghost text-xl">WebFireSale</Link>
       </div>
       <div className="flex-none">
         <div className="dropdown dropdown-end">
@@ -35,21 +69,22 @@ export default function DashboardNavbar() {
             </div>
           </div>
           <ul tabIndex={0} className="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
-            <li>
-              <Link href="/profile" className="justify-between">
-                Profile
-                <span className="badge">New</span>
-              </Link>
-            </li>
-            <li><a>Settings</a></li>
-            <li>
-              <button
-                onClick={handleSignOut}
-                className="btn btn-ghost w-full text-left"
-              >
-                Logout
-              </button>
-            </li>
+            {menuItems.map((item, index) => (
+              item.href ? (
+                <li key={index}>
+                  <Link href={item.href}>{item.label}</Link>
+                </li>
+              ) : (
+                <li key={index}>
+                  <button
+                    onClick={item.onClick}
+                    className="btn btn-ghost w-full text-left"
+                  >
+                    {item.label}
+                  </button>
+                </li>
+              )
+            ))}
           </ul>
         </div>
       </div>

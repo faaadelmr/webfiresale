@@ -31,12 +31,21 @@ WebFireSale is a Next.js 16 application (App Router) that demonstrates a complet
    - Middleware to protect routes based on roles
    - Server actions protected by role-based permissions
    - API routes with role verification
+   - Superadmin features: user management, role assignment, soft-delete, password reset, and automatic cleanup
 
 3. **Database Integration**:
    - Prisma schema with User and Address models
    - SQLite database as default (using DATABASE_URL environment variable)
    - Secure password hashing with bcrypt
    - User profiles with additional information (name, phone, date of birth, etc.)
+   - Soft-delete functionality with isActive and deletedAt fields
+
+4. **Superadmin Features**:
+   - User management (edit profile information)
+   - Role assignment and modification
+   - Soft-delete and restore functionality
+   - Password reset for other users
+   - Automatic cleanup of old deleted users (30-day retention)
 
 4. **UI/UX**:
    - DaisyUI components throughout the application
@@ -52,12 +61,26 @@ src/
 │   └── userActions.ts       # User management server actions
 ├── app/                     # Next.js App Router pages
 │   ├── api/
-│   │   ├── admin/users/route.ts     # Admin user management API
 │   │   ├── auth/[...nextauth]/route.ts  # NextAuth configuration
-│   │   └── signup/route.ts          # User registration API
-│   ├── admin/page.tsx       # Admin dashboard (superadmin/admin only)
-│   ├── dashboard/page.tsx   # Protected dashboard
-│   ├── profile/page.tsx     # User profile management
+│   │   ├── cron/purge-deleted-users/route.ts # Cron job to purge old deleted users
+│   │   ├── signup/route.ts          # User registration API
+│   │   └── users/[id]/
+│   │       ├── route.ts              # API for user profile management
+│   │       ├── restore/route.ts      # API to restore soft-deleted user
+│   │       ├── role/route.ts         # API to update user role
+│   │       └── reset-password/route.ts # API to reset user password
+│   ├── components/
+│   │   └── Toast.tsx                 # Toast notification component
+│   ├── dashboard/
+│   │   ├── page.tsx                 # Protected dashboard
+│   │   └── users/
+│   │       ├── page.tsx             # Server-side secured user management page
+│   │       ├── UserListClient.tsx   # Client-side user list component
+│   │       └── [id]/
+│   │           └── edit/
+│   │               ├── page.tsx     # Server-side secured edit user page
+│   │               └── EditUserClient.tsx # Client-side edit user component
+│   ├── profile/page.tsx             # User profile management
 │   ├── signin/page.tsx      # Signin page
 │   ├── signup/page.tsx      # Signup page
 │   ├── unauthorized/page.tsx # Unauthorized access page
@@ -69,6 +92,7 @@ src/
 │   └── ui/
 │       └── DashboardNavbar.tsx # Dashboard navigation
 ├── lib/                     # Utility functions
+│   ├── admin-helpers.ts     # Helper functions for superadmin features
 │   ├── auth.ts              # Authentication utilities with RBAC helpers
 │   ├── authSettings.ts      # Authentication configuration
 │   ├── rbac.ts              # Role-based access control (ACL) utilities
@@ -145,6 +169,15 @@ The application requires the following environment variables in a `.env` file:
 
 - `src/app/api/auth/[...nextauth]/route.ts`: NextAuth configuration with credentials and OAuth providers
 - `src/app/api/signup/route.ts`: API route for user registration
+- `src/app/api/users/[id]/route.ts`: API route for user profile management
+- `src/app/api/users/[id]/role/route.ts`: API route to update user role
+- `src/app/api/users/[id]/reset-password/route.ts`: API route to reset user password
+- `src/app/api/users/[id]/restore/route.ts`: API route to restore soft-deleted user
+- `src/app/api/cron/purge-deleted-users/route.ts`: Cron job to purge old deleted users
+- `src/app/dashboard/users/page.tsx`: Server-side secured user list page
+- `src/app/dashboard/users/UserListClient.tsx`: Client-side user list component with filtering and search
+- `src/components/Toast.tsx`: Toast notification component for user feedback
+- `src/lib/admin-helpers.ts`: Helper functions for superadmin user management
 - `src/lib/auth.ts`: Authentication utilities including password validation and RBAC helpers
 - `src/lib/authSettings.ts`: Configuration for enabling/disabling authentication providers
 - `src/lib/rbac.ts`: Role-based access control (ACL) configuration and utilities

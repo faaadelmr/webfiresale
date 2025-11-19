@@ -16,6 +16,11 @@ export async function validateUser(email: string, password: string) {
     return null
   }
 
+  // Check if user is soft-deleted
+  if (!user.isActive || user.deletedAt) {
+    return null;
+  }
+
   const isValid = await bcrypt.compare(password, user.password!)
 
   if (!isValid) {
@@ -43,6 +48,12 @@ export async function findOrCreateOAuthUser(profile: any, provider: string) {
   })
 
   if (user) {
+    // Check if the user is soft-deleted
+    if (!user.isActive || user.deletedAt) {
+      // Don't allow OAuth login for soft-deleted users
+      return null;
+    }
+
     // Update existing user with provider info if needed
     if (!user.providerId) {
       user = await prisma.user.update({
@@ -147,4 +158,34 @@ export async function hasPermission(resource: string): Promise<boolean> {
   }
 
   return checkAccess(session.user.role as Role, resource);
+}
+
+/**
+ * Clear tempPassword for the user after first login if it exists
+ * @param email - The user's email to identify the user
+ * @returns boolean indicating success
+ */
+export async function clearTempPasswordOnLogin(email: string): Promise<boolean> {
+  try {
+    // Find the user by email
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { tempPassword: true, id: true }
+    });
+
+    // If user exists and has a tempPassword, clear it
+    if (user && user.tempPassword) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { tempPassword: null }
+      });
+
+      return true;
+    }
+
+    return false; // No tempPassword to clear
+  } catch (error) {
+    console.error('Error clearing tempPassword:', error);
+    return false;
+  }
 }

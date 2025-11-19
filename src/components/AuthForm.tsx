@@ -69,7 +69,17 @@ const AuthForm: React.FC<AuthFormProps> = ({ type }) => {
       if (res?.error) {
         setError('Invalid credentials')
       } else {
-        router.push('/dashboard')
+        // Get the user's role from the session to determine redirect
+        const sessionRes = await fetch('/api/auth/session');
+        const session = await sessionRes.json();
+
+        // Redirect based on user role
+        if (session?.user?.role === 'customer') {
+          router.push('/?login=success')
+        } else {
+          // Superadmin and admin go to dashboard
+          router.push('/dashboard')
+        }
         router.refresh()
       }
     }

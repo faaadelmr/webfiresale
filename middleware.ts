@@ -2,12 +2,13 @@
 import { withAuth } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 import { checkAccess } from '@/lib/rbac';
+import prisma from '@/lib/prisma';
 
 // Define protected routes that need role-based access control
 const protectedRoutes = [
   '/dashboard',
-  '/admin',
   '/profile',
   // Add other protected routes as needed
 ];
@@ -15,20 +16,31 @@ const protectedRoutes = [
 // Define route-to-resource mapping for ACL
 const routeToResourceMap: Record<string, string> = {
   '/dashboard': 'dashboard',
-  '/admin': 'admin',
   '/profile': 'profile',
   // Add more mappings as needed
 };
 
 export default withAuth(
   // Custom middleware function that runs after authentication
-  function middleware(request: NextRequest) {
+  async function middleware(request: NextRequest) {
     // Get the user's role from the session
-    const token = request.nextauth.token;
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
     const userRole = token?.role as string;
+    const userEmail = token?.email as string;
 
-    // If no role is defined, the user shouldn't be accessing protected routes
-    if (!userRole) {
+    // If no role is defined or email is missing, the user shouldn't be accessing protected routes
+    if (!userRole || !userEmail) {
+      return NextResponse.redirect(new URL('/signin', request.url));
+    }
+
+    // Check if the user is active (not soft-deleted)
+    const user = await prisma.user.findUnique({
+      where: { email: userEmail },
+      select: { isActive: true, deletedAt: true }
+    });
+
+    // If user doesn't exist or is soft-deleted, deny access
+    if (!user || !user.isActive || user.deletedAt) {
       return NextResponse.redirect(new URL('/signin', request.url));
     }
 
@@ -36,14 +48,14 @@ export default withAuth(
     const pathname = request.nextUrl.pathname;
 
     // Check if the current path is a protected route
-    const isProtectedRoute = protectedRoutes.some(route => 
+    const isProtectedRoute = protectedRoutes.some(route =>
       pathname === route || pathname.startsWith(route + '/')
     );
 
     if (isProtectedRoute) {
       // Determine the resource based on the path
       let resource: string | undefined;
-      
+
       // Check exact matches first
       if (pathname in routeToResourceMap) {
         resource = routeToResourceMap[pathname];
@@ -55,7 +67,7 @@ export default withAuth(
             break;
           }
         }
-        
+
         // If no specific resource found, use the base route
         if (!resource) {
           const baseRoute = protectedRoutes.find(route => pathname === route || pathname.startsWith(route + '/'));
@@ -69,7 +81,7 @@ export default withAuth(
       // If we have a resource to check, validate access
       if (resource) {
         const hasAccess = checkAccess(userRole as any, resource);
-        
+
         if (!hasAccess) {
           // Redirect to unauthorized page if access is denied
           return NextResponse.redirect(new URL('/unauthorized', request.url));
