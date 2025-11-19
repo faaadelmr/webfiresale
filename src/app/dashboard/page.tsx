@@ -2,10 +2,19 @@
 import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
 import { authOptions } from '../api/auth/[...nextauth]/route'
+import { requirePermission } from '@/lib/auth'
 import DashboardNavbar from '@/components/ui/DashboardNavbar'
 import prisma from '@/lib/prisma'
 
 export default async function DashboardPage() {
+  try {
+    // Check if the user has permission to access the dashboard
+    await requirePermission('dashboard');
+  } catch (error) {
+    // If the user doesn't have permission, redirect to unauthorized page
+    redirect('/unauthorized');
+  }
+
   const session = await getServerSession(authOptions)
 
   if (!session) {
@@ -43,6 +52,7 @@ export default async function DashboardPage() {
                 <div className="bg-base-200 p-4 rounded-lg">
                   <p><span className="font-semibold">Name:</span> {session.user?.name}</p>
                   <p><span className="font-semibold">Email:</span> {session.user?.email}</p>
+                  <p><span className="font-semibold">Role:</span> {session.user?.role}</p>
                 </div>
               </div>
             </div>
@@ -53,6 +63,9 @@ export default async function DashboardPage() {
                 <div className="card-actions justify-end">
                   <a href="/profile" className="btn btn-primary">Edit Profile</a>
                   <a href="/profile" className="btn btn-outline">Manage Address</a>
+                  {session.user?.role === 'superadmin' && (
+                    <a href="/admin" className="btn btn-secondary">Admin Panel</a>
+                  )}
                 </div>
               </div>
             </div>

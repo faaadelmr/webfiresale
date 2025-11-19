@@ -71,34 +71,42 @@ export const authOptions = {
   providers,
   callbacks: {
     async jwt({ token, user, account }: { token: any; user: any; account: any }) {
+      // Initial sign-in or user creation
       if (user) {
         token.id = user.id;
         token.name = user.name;
         token.email = user.email;
         token.provider = user.provider || (account ? account.provider : 'credentials');
+
+        // For new users (not yet in database), we pass role from validateUser/findOrCreateOAuthUser
+        if (user.role) {
+          token.role = user.role;
+        }
       }
+      // Subsequent token refreshes - fetch user data from database
+      else if (token.email) {
+        const dbUser = await prisma.user.findUnique({
+          where: { email: token.email }
+        });
+
+        if (dbUser) {
+          token.id = dbUser.id;
+          token.name = dbUser.name || dbUser.email.split('@')[0]; // Use email prefix as name if not set
+          token.email = dbUser.email;
+          token.role = dbUser.role;
+          token.provider = dbUser.provider;
+        }
+      }
+
       return token;
     },
-    async session({ session, token, user }: { session: any; token: any; user: any }) {
+    async session({ session, token }: { session: any; token: any }) {
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.name = token.name;
         session.user.email = token.email;
         session.user.provider = token.provider;
-      }
-
-      // If we have a user object, merge profile fields directly from the user
-      if (user) {
-        session.user.avatar = user.avatar;
-        session.user.firstName = user.firstName;
-        session.user.lastName = user.lastName;
-        session.user.phone = user.phone;
-        session.user.dateOfBirth = user.dateOfBirth;
-        session.user.bio = user.bio;
-        session.user.gender = user.gender;
-        session.user.role = user.role;
-        session.user.isVerified = user.isVerified;
-        session.user.preferences = user.preferences;
+        session.user.role = token.role;
       }
 
       return session;

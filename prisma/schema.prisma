@@ -19,7 +19,7 @@ model User {
   dateOfBirth DateTime?
   firstName   String?
   lastName    String?
-  gender      String?   // MALE | FEMALE
+  gender      String?
   preferences Json?
   role        String    @default("USER")
   isVerified  Boolean   @default(false)
