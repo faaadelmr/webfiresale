@@ -6,6 +6,7 @@ import FacebookProvider from 'next-auth/providers/facebook'
 import InstagramProvider from 'next-auth/providers/instagram'
 import { validateUser, findOrCreateOAuthUser } from '@/lib/auth'
 import { authSettings } from '@/lib/authSettings'
+import prisma from '@/lib/prisma'
 
 // Build dynamic providers array based on authSettings
 const providers = [];
@@ -78,13 +79,28 @@ export const authOptions = {
       }
       return token;
     },
-    async session({ session, token }: { session: any; token: any }) {
+    async session({ session, token, user }: { session: any; token: any; user: any }) {
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.name = token.name;
         session.user.email = token.email;
         session.user.provider = token.provider;
       }
+
+      // If we have a user object, merge profile fields directly from the user
+      if (user) {
+        session.user.avatar = user.avatar;
+        session.user.firstName = user.firstName;
+        session.user.lastName = user.lastName;
+        session.user.phone = user.phone;
+        session.user.dateOfBirth = user.dateOfBirth;
+        session.user.bio = user.bio;
+        session.user.gender = user.gender;
+        session.user.role = user.role;
+        session.user.isVerified = user.isVerified;
+        session.user.preferences = user.preferences;
+      }
+
       return session;
     },
     async signIn(params: {

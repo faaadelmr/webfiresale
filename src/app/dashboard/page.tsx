@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
 import { authOptions } from '../api/auth/[...nextauth]/route'
 import DashboardNavbar from '@/components/ui/DashboardNavbar'
+import prisma from '@/lib/prisma'
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
@@ -11,9 +12,17 @@ export default async function DashboardPage() {
     redirect('/signin')
   }
 
+  // Fetch user with addresses
+  const user = await prisma.user.findUnique({
+    where: { email: session.user?.email || '' },
+    include: {
+      addresses: true
+    }
+  })
+
   return (
     <div className="min-h-screen bg-base-200">
-      <DashboardNavbar user={session.user!} />
+      <DashboardNavbar />
 
       <main className="p-4">
         <div className="max-w-7xl mx-auto">
@@ -42,12 +51,44 @@ export default async function DashboardPage() {
               <div className="card-body">
                 <h2 className="card-title">Quick Actions</h2>
                 <div className="card-actions justify-end">
-                  <button className="btn btn-primary">Edit Profile</button>
-                  <button className="btn btn-outline">Settings</button>
+                  <a href="/profile" className="btn btn-primary">Edit Profile</a>
+                  <a href="/profile" className="btn btn-outline">Manage Address</a>
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Address Section */}
+          {user?.addresses && user.addresses.length > 0 && (
+            <div className="mt-6">
+              <div className="card bg-base-100 shadow-xl">
+                <div className="card-body">
+                  <h2 className="card-title">Your Addresses</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {user.addresses.map((address) => (
+                      <div key={address.id} className="border rounded-lg p-4">
+                        <div className="flex justify-between">
+                          <h3 className="font-semibold">{address.firstName} {address.lastName}</h3>
+                          {address.isDefault && (
+                            <span className="badge badge-primary">Default</span>
+                          )}
+                        </div>
+                        <p>{address.street}</p>
+                        <p>{address.city}, {address.state} {address.postalCode}</p>
+                        <p>{address.country}</p>
+                        {address.phone && <p>Phone: {address.phone}</p>}
+                        {address.label && <p className="badge badge-secondary mt-1">{address.label}</p>}
+                        {address.notes && <p className="text-sm text-gray-500 mt-1">{address.notes}</p>}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="card-actions justify-end mt-4">
+                    <a href="/profile" className="btn btn-primary">Manage Addresses</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>

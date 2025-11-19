@@ -8,11 +8,41 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  name         String?
-  email        String   @unique
-  password     String?
-  provider     String?      // oauth or credentials
-  providerId   String?      // oauth user ID
-  createdAt    DateTime @default(now())
+  id          String    @id @default(cuid())
+  name        String?
+  email       String    @unique
+  password    String?
+  provider    String?
+  providerId  String?
+  avatar      String?
+  phone       String?
+  dateOfBirth DateTime?
+  firstName   String?
+  lastName    String?
+  gender      String?   // MALE | FEMALE
+  preferences Json?
+  role        String    @default("USER")
+  isVerified  Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  addresses   Address[]
+}
+
+model Address {
+  id         String   @id @default(cuid())
+  userId     String
+  firstName  String
+  lastName   String
+  street     String
+  city       String
+  state      String
+  postalCode String
+  country    String
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  label      String?
+  notes      String?
+  phone      String?
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
