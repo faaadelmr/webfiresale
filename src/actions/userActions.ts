@@ -75,8 +75,7 @@ export async function createUserAction(userData: {
       password: hashedPassword,
       role: role || 'customer', // Default to customer if no role specified
       phone: phone ? sanitizeInput(phone) : undefined,
-      firstName: firstName ? sanitizeInput(firstName) : undefined,
-      lastName: lastName ? sanitizeInput(lastName) : undefined,
+      // firstName/lastName removed as they are not in schema
       gender,
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
       avatar,
@@ -141,8 +140,6 @@ export async function updateUserAction(userId: string, profileData: any) {
     const sanitizedProfileData = {
       ...profileData,
       name: profileData.name ? sanitizeInput(profileData.name) : undefined,
-      firstName: profileData.firstName ? sanitizeInput(profileData.firstName) : undefined,
-      lastName: profileData.lastName ? sanitizeInput(profileData.lastName) : undefined,
       phone: profileData.phone ? sanitizeInput(profileData.phone) : undefined,
     };
 
@@ -368,8 +365,6 @@ export async function getAllUsersAction() {
         updatedAt: true,
         avatar: true,
         phone: true,
-        firstName: true,
-        lastName: true,
         gender: true,
         dateOfBirth: true,
       },
@@ -405,8 +400,6 @@ export async function getUserByIdAction(userId: string) {
         email: true,
         avatar: true,
         phone: true,
-        firstName: true,
-        lastName: true,
         gender: true,
         dateOfBirth: true,
         role: true,

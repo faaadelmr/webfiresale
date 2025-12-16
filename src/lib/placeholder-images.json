@@ -1,0 +1,16 @@
+{
+  "placeholderImages": [
+    {
+      "id": "1",
+      "description": "Spicy meatball dish.",
+      "imageUrl": "https://picsum.photos/seed/bakso/600/400",
+      "imageHint": "bakso food"
+    },
+    {
+      "id": "2",
+      "description": "Assorted dimsum in a steamer.",
+      "imageUrl": "https://picsum.photos/seed/dimsum/600/400",
+      "imageHint": "dimsum food"
+    }
+  ]
+}

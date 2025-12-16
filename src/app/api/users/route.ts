@@ -23,14 +23,18 @@ export async function GET(request: NextRequest) {
         updatedAt: true,
         avatar: true,
         phone: true,
-        firstName: true,
-        lastName: true,
         gender: true,
         dateOfBirth: true,
       },
     });
 
-    return new Response(JSON.stringify(users), {
+    const transformedUsers = users.map(u => ({
+      ...u,
+      firstName: u.name ? u.name.split(' ')[0] : '',
+      lastName: u.name ? u.name.split(' ').slice(1).join(' ') : '',
+    }));
+
+    return new Response(JSON.stringify(transformedUsers), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
@@ -119,8 +123,6 @@ export async function POST(request: NextRequest) {
       password: hashedPassword,
       role: role || 'customer', // Default to customer if no role specified
       phone: phone ? sanitizeInput(phone) : undefined,
-      firstName: firstName ? sanitizeInput(firstName) : undefined,
-      lastName: lastName ? sanitizeInput(lastName) : undefined,
       gender,
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
     };

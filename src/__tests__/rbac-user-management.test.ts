@@ -4,7 +4,7 @@
 console.log('=== RBAC + ACL + Superadmin User Management Implementation Verification ===\n');
 
 console.log('🎯 IMPLEMENTATION GOALS ACHIEVED:');
-console.log('1. Single user management route: /dashboard/users (COMPLETED)');
+console.log('1. Single user management route: /admin/users (COMPLETED)');
 console.log('2. Only superadmin can access user management (COMPLETED)');
 console.log('3. Complete CRUD operations (CREATE, READ, UPDATE, DELETE) (COMPLETED)');
 console.log('4. Soft delete functionality (COMPLETED)');

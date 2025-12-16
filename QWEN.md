@@ -1,26 +1,28 @@
-# WebFireSale - Next.js Authentication Demo
+# WebFireSale - E-commerce Platform
 
 ## Project Overview
 
-WebFireSale is a Next.js 16 application (App Router) that demonstrates a complete authentication system using NextAuth.js, Prisma ORM, and DaisyUI for styling. The application provides user signup, signin, and a protected dashboard with a modern UI.
+WebFireSale is a comprehensive e-commerce platform built with Next.js 16 (App Router), featuring auction functionality, flash sales, user authentication, role-based access control, and order management. The application uses NextAuth.js for authentication, Prisma ORM for database operations, and DaisyUI/TailwindCSS for responsive UI components.
 
 ### Key Technologies
 
 - **Next.js 16** (App Router)
 - **TypeScript**
-- **NextAuth.js v4** (Credentials provider, Google OAuth)
+- **NextAuth.js v4** (Credentials provider, Google, Facebook, Instagram OAuth)
 - **Prisma ORM**
-- **SQLite** (default database, though PostgreSQL via Supabase is mentioned in the original documentation)
+- **SQLite** (default database) / PostgreSQL (alternative)
 - **TailwindCSS + DaisyUI** (for styling)
 - **bcrypt** (for password hashing)
+- **Lucide React** (for icons)
+- **Framer Motion** (for animations)
 
 ### Features
 
 1. **User Authentication System**:
    - User signup with name, email, and password
    - User signin with email and password
-   - Google OAuth authentication
-   - Protected routes (dashboard)
+   - Multiple OAuth providers (Google, Facebook, Instagram)
+   - Protected routes (dashboard, admin panels)
    - Logout functionality
    - Email verification functionality
 
@@ -33,77 +35,221 @@ WebFireSale is a Next.js 16 application (App Router) that demonstrates a complet
    - API routes with role verification
    - Superadmin features: user management, role assignment, soft-delete, password reset, and automatic cleanup
 
-3. **Database Integration**:
-   - Prisma schema with User and Address models
+3. **E-commerce Functionality**:
+   - Product catalog with detailed listings
+   - Flash sales with limited quantities and time periods
+   - Auction system with real-time bidding
+   - Shopping cart management
+   - Order processing and management
+   - Address management for delivery
+   - Shipping cost calculation
+
+4. **Admin Features**:
+   - Product management (add, edit, remove products)
+   - Flash sale management (set prices, time limits, quantities)
+   - Auction management (start/stop auctions, manage bids)
+   - Order management (view, update status)
+   - User management (modify profiles, roles, passwords)
+   - Shipping configuration and settings management
+
+5. **Database Integration**:
+   - Prisma schema with multiple related models
    - SQLite database as default (using DATABASE_URL environment variable)
    - Secure password hashing with bcrypt
-   - User profiles with additional information (name, phone, date of birth, etc.)
+   - User profiles with detailed information (name, phone, date of birth, etc.)
    - Soft-delete functionality with isActive and deletedAt fields
+   - Complete order history tracking
 
-4. **Superadmin Features**:
-   - User management (edit profile information)
-   - Role assignment and modification
-   - Soft-delete and restore functionality
-   - Password reset for other users
-   - Automatic cleanup of old deleted users (30-day retention)
-
-4. **UI/UX**:
+6. **UI/UX**:
    - DaisyUI components throughout the application
    - Responsive design for all screen sizes
    - Consistent theming across pages
    - Modern dashboard interface with user information and address management
+   - Interactive auction interface with real-time bid updates
+   - Shopping cart with quantity management and checkout flow
 
 ### Project Structure
 
-```
-src/
-├── actions/                 # Server actions with RBAC protection
-│   └── userActions.ts       # User management server actions
-├── app/                     # Next.js App Router pages
-│   ├── api/
-│   │   ├── auth/[...nextauth]/route.ts  # NextAuth configuration
-│   │   ├── cron/purge-deleted-users/route.ts # Cron job to purge old deleted users
-│   │   ├── signup/route.ts          # User registration API
-│   │   └── users/[id]/
-│   │       ├── route.ts              # API for user profile management
-│   │       ├── restore/route.ts      # API to restore soft-deleted user
-│   │       ├── role/route.ts         # API to update user role
-│   │       └── reset-password/route.ts # API to reset user password
-│   ├── components/
-│   │   └── Toast.tsx                 # Toast notification component
-│   ├── dashboard/
-│   │   ├── page.tsx                 # Protected dashboard
-│   │   └── users/
-│   │       ├── page.tsx             # Server-side secured user management page
-│   │       ├── UserListClient.tsx   # Client-side user list component
-│   │       └── [id]/
-│   │           └── edit/
-│   │               ├── page.tsx     # Server-side secured edit user page
-│   │               └── EditUserClient.tsx # Client-side edit user component
-│   ├── profile/page.tsx             # User profile management
-│   ├── signin/page.tsx      # Signin page
-│   ├── signup/page.tsx      # Signup page
-│   ├── unauthorized/page.tsx # Unauthorized access page
-│   ├── page.tsx             # Homepage
-│   ├── layout.tsx           # Root layout
-│   └── globals.css          # Global styles
-├── components/              # React components
-│   ├── SessionProviderWrapper.tsx # Session provider wrapper
-│   └── ui/
-│       └── DashboardNavbar.tsx # Dashboard navigation
-├── lib/                     # Utility functions
-│   ├── admin-helpers.ts     # Helper functions for superadmin features
-│   ├── auth.ts              # Authentication utilities with RBAC helpers
-│   ├── authSettings.ts      # Authentication configuration
-│   ├── rbac.ts              # Role-based access control (ACL) utilities
-│   ├── security.ts          # Security utilities and input validation
-│   └── prisma.ts            # Prisma client setup
-├── types/                   # TypeScript type definitions
-├── prisma/                  # Prisma schema and migrations
+.
+├── .gitignore
+├── .idx/
+├── .next/                    # Next.js build output (git ignored)
+├── __tests/               # Test files
+├── middleware.ts
+├── next.config.ts
+├── package.json
+├── pnpm-lock.yaml
+├── pnpm-workspace.yaml
+├── postcss.config.mjs
+├── prisma/
+│   ├── schema.prisma        # Database schema definition
+│   ├── seed.ts              # Database seeding script
+│   ├── migrations/          # Database migration files
+│   └── [other prisma files]
 ├── public/                  # Static assets
-├── middleware.ts            # RBAC middleware for route protection
-└── QWEN.md                  # Project documentation
-```
+├── src/
+│   ├── actions/             # Server actions with RBAC protection
+│   │   ├── cartActions.ts
+│   │   ├── productActions.ts
+│   │   └── userActions.ts
+│   ├── app/                 # Next.js App Router pages
+│   │   ├── (auth)/          # Authentication pages
+│   │   │   ├── signin/
+│   │   │   │   └── page.tsx
+│   │   │   └── signup/
+│   │   │       └── page.tsx
+│   │   ├── (protected)/     # Protected pages
+│   │   │   ├── admin/
+│   │   │   │   ├── layout.tsx
+│   │   │   │   ├── page.tsx
+│   │   │   │   ├── auction/
+│   │   │   │   ├── flashsale/
+│   │   │   │   ├── orders/
+│   │   │   │   ├── products/
+│   │   │   │   ├── settings/
+│   │   │   │   ├── shipping/
+│   │   │   │   └── users/
+│   │   │   │       ├── page.tsx
+│   │   │       └── UserListClient.tsx
+│   │   │   ├── profile/
+│   │   │   │   └── page.tsx
+│   │   │   └── dashboard/
+│   │   │       └── page.tsx
+│   │   ├── api/
+│   │   │   ├── addresses/
+│   │   │   │   └── route.ts
+│   │   │   ├── auth/
+│   │   │   │   └── [...nextauth]/
+│   │   │   │       └── route.ts
+│   │   │   ├── cart/
+│   │   │   │   └── route.ts
+│   │   │   ├── checkout-data/
+│   │   │   │   └── route.ts
+│   │   │   ├── cron/
+│   │   │   ├── customer-profile/
+│   │   │   │   ├── route.ts
+│   │   │   │   └── addresses/
+│   │   │   │       └── route.ts
+│   │   │   ├── process-expired-items/
+│   │   │   ├── products/
+│   │   │   ├── signup/
+│   │   │   └── users/
+│   │   │       └── [id]/
+│   │   │           ├── route.ts
+│   │   │           ├── restore/
+│   │   │           ├── role/
+│   │   │           └── reset-password/
+│   │   ├── auction/
+│   │   │   └── [id]/
+│   │   │       └── page.tsx
+│   │   ├── checkout/
+│   │   │   └── page.tsx
+│   │   ├── notification/
+│   │   │   └── page.tsx
+│   │   ├── order-detail/
+│   │   │   └── [id]/
+│   │   │       └── page.tsx
+│   │   ├── settings/
+│   │   │   └── page.tsx
+│   │   ├── unauthorized/
+│   │   │   └── page.tsx
+│   │   ├── ClientLayout.tsx
+│   │   ├── favicon.ico
+│   │   ├── globals.css
+│   │   ├── layout.tsx
+│   │   ├── not-found.tsx
+│   │   └── page.tsx
+│   ├── components/
+│   │   ├── ui/
+│   │   │   ├── accordion.tsx
+│   │   │   ├── alert.tsx
+│   │   │   ├── alert-dialog.tsx
+│   │   │   ├── avatar.tsx
+│   │   │   ├── badge.tsx
+│   │   │   ├── button.tsx
+│   │   │   ├── calendar.tsx
+│   │   │   ├── card.tsx
+│   │   │   ├── carousel.tsx
+│   │   │   ├── chart.tsx
+│   │   │   ├── checkbox.tsx
+│   │   │   ├── collapsible.tsx
+│   │   │   ├── command.tsx
+│   │   │   ├── DashboardNavbar.tsx
+│   │   │   ├── dialog.tsx
+│   │   │   ├── dropdown-menu.tsx
+│   │   │   ├── form.tsx
+│   │   │   ├── input.tsx
+│   │   │   ├── label.tsx
+│   │   │   ├── LogoutButton.tsx
+│   │   │   ├── menubar.tsx
+│   │   │   ├── popover.tsx
+│   │   │   ├── progress.tsx
+│   │   │   ├── radio-group.tsx
+│   │   │   ├── RoleSelector.tsx
+│   │   │   ├── scroll-area.tsx
+│   │   │   ├── select.tsx
+│   │   │   ├── separator.tsx
+│   │   │   ├── sheet.tsx
+│   │   │   ├── sidebar.tsx
+│   │   │   ├── skeleton.tsx
+│   │   │   ├── slider.tsx
+│   │   │   ├── switch.tsx
+│   │   │   ├── table.tsx
+│   │   │   ├── tabs.tsx
+│   │   │   ├── textarea.tsx
+│   │   │   ├── toast.tsx
+│   │   │   ├── toaster.tsx
+│   │   │   ├── tooltip.tsx
+│   │   │   └── UsersTable.tsx
+│   │   ├── auction-card.tsx
+│   │   ├── auction-grid.tsx
+│   │   ├── AuthForm.tsx
+│   │   ├── buyer-form.tsx
+│   │   ├── cart-sidebar.tsx
+│   │   ├── check-order-dialog.tsx
+│   │   ├── countdown-timer.tsx
+│   │   ├── flashsale-grid.tsx
+│   │   ├── header.tsx
+│   │   ├── OAuthButtons.tsx
+│   │   ├── PeriodicProcessor.tsx
+│   │   ├── product-card.tsx
+│   │   ├── product-grid.tsx
+│   │   ├── promotion-banner.tsx
+│   │   ├── SessionProviderWrapper.tsx
+│   │   └── Toast.tsx
+│   ├── context/
+│   │   └── cart-context.tsx
+│   ├── hooks/
+│   │   ├── use-cart.ts
+│   │   ├── use-mobile.tsx
+│   │   └── use-toast.ts
+│   ├── lib/
+│   │   ├── admin-helpers.ts
+│   │   ├── auth.ts
+│   │   ├── authSettings.ts
+│   │   ├── avatarUtils.ts
+│   │   ├── background-jobs.ts
+│   │   ├── cart-db.ts
+│   │   ├── mock-data.ts
+│   │   ├── order-standards.ts
+│   │   ├── placeholder-images.json
+│   │   ├── placeholder-images.ts
+│   │   ├── prisma.ts
+│   │   ├── rbac.ts
+│   │   ├── regions.ts
+│   │   ├── security.ts
+│   │   ├── self-protection.ts
+│   │   ├── types.ts
+│   │   └── utils.ts
+│   ├── scripts/
+│   ├── types/
+│   └── [other type definition files]
+├── tailwind.config.js
+├── tsconfig.json
+├── QWEN.md                  # Project documentation
+├── RBAC_IMPLEMENTATION_SUMMARY.md
+└── README.md
+
 
 ## Building and Running
 
@@ -111,35 +257,7 @@ src/
 
 - Node.js (v18 or higher)
 - SQLite database (default) or PostgreSQL database
-
-### Setup
-
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   npm install
-   # or
-   pnpm install
-   ```
-3. Set up environment variables in `.env` (database URL and NextAuth secret)
-4. Generate Prisma client:
-   ```bash
-   npx prisma generate
-   ```
-5. Run database migrations:
-   ```bash
-   npx prisma db push  # For SQLite
-   # or
-   npx prisma migrate dev --name init  # For PostgreSQL
-   ```
-6. Start the development server:
-   ```bash
-   npm run dev
-   # or
-   pnpm dev
-   ```
-
-The application will be available at http://localhost:3000
+- pnpm package manager (recommended)
 
 ### Environment Variables
 
@@ -152,6 +270,7 @@ The application requires the following environment variables in a `.env` file:
   - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
   - `FACEBOOK_CLIENT_ID` and `FACEBOOK_CLIENT_SECRET`
   - `INSTAGRAM_CLIENT_ID` and `INSTAGRAM_CLIENT_SECRET`
+- Additional configuration variables for payment time limits, business addresses, etc.
 
 ## Development Conventions
 
@@ -164,6 +283,8 @@ The application requires the following environment variables in a `.env` file:
 - Server components are used for data fetching and server-side operations
 - Components are organized in the `src/components` directory
 - Utility functions are in the `src/lib` directory
+- Server actions are used for authenticated operations
+- API routes handle data fetching and modification
 
 ## Key Files
 
@@ -174,8 +295,8 @@ The application requires the following environment variables in a `.env` file:
 - `src/app/api/users/[id]/reset-password/route.ts`: API route to reset user password
 - `src/app/api/users/[id]/restore/route.ts`: API route to restore soft-deleted user
 - `src/app/api/cron/purge-deleted-users/route.ts`: Cron job to purge old deleted users
-- `src/app/dashboard/users/page.tsx`: Server-side secured user list page
-- `src/app/dashboard/users/UserListClient.tsx`: Client-side user list component with filtering and search
+- `src/app/admin/users/page.tsx`: Server-side secured user list page
+- `src/app/admin/users/UserListClient.tsx`: Client-side user list component with filtering and search
 - `src/components/Toast.tsx`: Toast notification component for user feedback
 - `src/lib/admin-helpers.ts`: Helper functions for superadmin user management
 - `src/lib/auth.ts`: Authentication utilities including password validation and RBAC helpers
@@ -184,9 +305,11 @@ The application requires the following environment variables in a `.env` file:
 - `src/lib/security.ts`: Security utilities for input validation and sanitization
 - `middleware.ts`: RBAC middleware to enforce role-based access control for routes
 - `src/actions/userActions.ts`: Protected server actions with role-based permissions
-- `prisma/schema.prisma`: Database schema definition with User and Address models
+- `prisma/schema.prisma`: Database schema definition with multiple related models
 - `src/components/SessionProviderWrapper.tsx`: Wrapper for NextAuth session provider
-- `src/components/ui/DashboardNavbar.tsx`: Navigation component for the dashboard
+- `src/components/ui/DashboardNavbar.tsx`: Navigation component for the application
+- `src/app/checkout/page.tsx`: Complete checkout flow with address and shipping management
+- `src/components/buyer-form.tsx`: Address form component used in checkout process
 
 ## Authentication Configuration
 
@@ -198,44 +321,56 @@ export const authSettings = {
     credentials: true,     // Enable email/password authentication
     google: true,          // Enable Google OAuth
     facebook: false,       // Disable Facebook OAuth
-    instagram: false,      // Disable Instagram OAuth
+    instagram: false,      // Disable Instagram OAuth,
   },
 };
 ```
 
 ## Database Schema
 
-The application uses the following Prisma schema:
+The application uses a comprehensive Prisma schema with the following main models:
 
 - **User**: Contains user information including authentication details, profile information, and roles
 - **Address**: Contains user addresses with support for multiple addresses per user
-
-The User model includes fields for name, email, password, provider, avatar, profile details (phone, date of birth, etc.), role (with "USER" as default), and verification status.
+- **Product**: Core product information with name, description, price, and weight
+- **FlashSale**: Limited-time and limited-quantity sale items
+- **Auction**: Auction items with bidding functionality
+- **Bid**: Bid information associated with auctions
+- **Order**: Order information including status, shipping, and payment details
+- **OrderItem**: Individual items within an order
+- **Cart**: User's shopping cart
+- **CartItem**: Items in a user's cart
+- **ShippingOption**: Shipping costs by location
+- **RefundDetails**: Refund information for orders
 
 ## Security Features
 
 - Passwords are hashed using bcrypt
 - Authentication sessions are managed through JWT tokens
 - OAuth providers are implemented following security best practices
-- Input validation is performed during registration
+- Input validation is performed during registration and on all data entry points
 - Session protection using NextAuth's built-in security features
+- RBAC system to control access to different parts of the application
+- Server-side validation of all critical operations
+- SQL injection protection through Prisma ORM
+- XSS prevention through proper input sanitization
 
 ## RBAC (Role-Based Access Control) Implementation
 
-The application now includes a robust RBAC system with ACL (Access Control List) for fine-grained permission control:
+The application includes a robust RBAC system with ACL (Access Control List) for fine-grained permission control:
 
-### Roles
-- **superadmin**: Has access to all resources and can manage ACL
-- **admin**: Can access dashboard and profile
-- **customer**: Can only access profile
+###Roles
+- **superadmin**: Has access to all resources and can manage ACL, user management, role assignments
+- **admin**: Can access admin dashboard, product management, and order management
+- **customer**: Can access profile, place orders, participate in auctions
 
-### ACL Configuration
+###ACLConfiguration
 - Defined in `src/lib/rbac.ts` with the following permissions:
   - superadmin: ["*"] (full access)
-  - admin: ["dashboard", "profile"]
+  - admin: ["dashboard", "admin"]
   - customer: ["profile"]
 
-### Implementation Components
+###ImplementationComponents
 1. **NextAuth Integration**: Roles are stored in JWT and session via database lookup
 2. **Middleware**: Enforces RBAC rules server-side for all protected routes
 3. **Authorization Helpers**: Server-side functions in `src/lib/auth.ts` for checking permissions
@@ -243,7 +378,7 @@ The application now includes a robust RBAC system with ACL (Access Control List)
 5. **API Route Protection**: API routes verify roles before executing operations
 6. **Security Utilities**: Input validation and sanitization in `src/lib/security.ts`
 
-### Access Control Flow
+###AccessControlFlow
 1. User authenticates and role is retrieved from database
 2. Role is stored in JWT and session
 3. Middleware checks role against ACL for each route

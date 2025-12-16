@@ -48,6 +48,59 @@ export function isValidEmail(email: string): boolean {
 }
 
 /**
+ * Validates product data
+ * @param productData - The product data to validate
+ * @returns An object with isValid boolean and error message if invalid
+ */
+export function isValidProductData(productData: any) {
+  // Validate required fields
+  if (!productData.name || typeof productData.name !== 'string' || productData.name.trim().length === 0) {
+    return { isValid: false, error: 'Product name is required and must be a non-empty string' };
+  }
+
+  if (!productData.description || typeof productData.description !== 'string' || productData.description.trim().length === 0) {
+    return { isValid: false, error: 'Product description is required and must be a non-empty string' };
+  }
+
+  if (!productData.image || typeof productData.image !== 'string' || productData.image.trim().length === 0) {
+    return { isValid: false, error: 'Product image is required and must be a non-empty string' };
+  }
+
+  // Validate original price
+  if (typeof productData.originalPrice === 'undefined' || productData.originalPrice === null) {
+    return { isValid: false, error: 'Original price is required' };
+  }
+
+  const price = Number(productData.originalPrice);
+  if (isNaN(price) || price < 0) {
+    return { isValid: false, error: 'Original price must be a valid non-negative number' };
+  }
+
+  // Validate quantity
+  if (typeof productData.quantityAvailable === 'undefined' || productData.quantityAvailable === null) {
+    return { isValid: false, error: 'Quantity is required' };
+  }
+
+  const quantity = Number(productData.quantityAvailable);
+  if (isNaN(quantity) || quantity < 0) {
+    return { isValid: false, error: 'Quantity must be a valid non-negative number' };
+  }
+
+  // Validate weight
+  if (typeof productData.weight === 'undefined' || productData.weight === null) {
+    return { isValid: false, error: 'Weight is required' };
+  }
+
+  const weight = Number(productData.weight);
+  if (isNaN(weight) || weight < 0) {
+    return { isValid: false, error: 'Weight must be a valid non-negative number' };
+  }
+
+  // If all validations pass
+  return { isValid: true };
+}
+
+/**
  * Generates a secure random token for various security purposes
  * @param length - The length of the token to generate
  * @returns A secure random token

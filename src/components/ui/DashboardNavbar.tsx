@@ -26,15 +26,15 @@ export default function DashboardNavbar() {
         ];
       case 'admin':
         return [
-          { label: 'Dashboard', href: '/dashboard' },
+          { label: 'Admin Dashboard', href: '/admin' },
           { label: 'Profile', href: '/profile' },
           { label: 'Settings', href: '/settings' },
           { label: 'Logout', onClick: handleSignOut },
         ];
       case 'superadmin':
         return [
-          { label: 'Dashboard', href: '/dashboard' },
-          { label: 'User Management', href: '/dashboard/users' },
+          { label: 'Admin Dashboard', href: '/admin' },
+          { label: 'User Management', href: '/admin/users' },
           { label: 'Profile', href: '/profile' },
           { label: 'Settings', href: '/settings' },
           { label: 'Logout', onClick: handleSignOut },
@@ -49,7 +49,7 @@ export default function DashboardNavbar() {
   return (
     <div className="navbar bg-base-100 shadow-md">
       <div className="flex-1">
-        <Link href={user?.role === 'customer' ? '/' : '/dashboard'} className="btn btn-ghost text-xl">WebFireSale</Link>
+        <Link href={user?.role === 'customer' ? '/' : '/admin'} className="btn btn-ghost text-xl">WebFireSale</Link>
       </div>
       <div className="flex-none">
         <div className="dropdown dropdown-end">

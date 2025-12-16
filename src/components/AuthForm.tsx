@@ -46,7 +46,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ type }) => {
           })
 
           if (signInRes?.ok) {
-            router.push('/dashboard')
+            router.push('/admin')
             router.refresh()
           } else {
             setError('Invalid credentials')
@@ -77,8 +77,8 @@ const AuthForm: React.FC<AuthFormProps> = ({ type }) => {
         if (session?.user?.role === 'customer') {
           router.push('/?login=success')
         } else {
-          // Superadmin and admin go to dashboard
-          router.push('/dashboard')
+          // Superadmin and admin go to admin dashboard
+          router.push('/admin')
         }
         router.refresh()
       }
@@ -161,7 +161,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ type }) => {
             {type === 'signin' && (
               <>
                 <div className="divider">OR</div>
-                <OAuthButtons callbackUrl="/dashboard" />
+                <OAuthButtons callbackUrl="/api/auth/role-redirect" />
               </>
             )}
 

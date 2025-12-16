@@ -2,7 +2,7 @@
 ## Implementation Summary
 
 ## 🎯 Overview
-The system has been successfully refactored to implement a comprehensive Role-Based Access Control (RBAC) system with Access Control List (ACL) capabilities and enhanced superadmin features. All user management operations are now centralized in a single location: `/dashboard/users`.
+The system has been successfully refactored to implement a comprehensive Role-Based Access Control (RBAC) system with Access Control List (ACL) capabilities and enhanced superadmin features. All user management operations are now centralized in a single location: `/admin/users`.
 
 ## 🏗️ Architecture
 
@@ -153,4 +153,4 @@ The implementation has been verified to include:
 
 ## 📝 Notes
 
-This implementation centralizes all user management in `/dashboard/users` and `/dashboard/users/[id]/edit`, removing any separate admin-only sections. The system maintains full backward compatibility while adding enhanced security, better validation, and a more cohesive user experience.
+This implementation centralizes all user management in `/admin/users` and `/admin/users/[id]/edit`, removing any separate admin-only sections. The system maintains full backward compatibility while adding enhanced security, better validation, and a more cohesive user experience.

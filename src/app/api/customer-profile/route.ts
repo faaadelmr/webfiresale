@@ -75,19 +75,17 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user?.email) {
+    if (!session?.user?.id) {
       return new Response('Unauthorized', { status: 401 });
     }
 
-    // Get the user
+    // Get the user by ID instead of email for better security
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { id: session.user.id },
       select: {
         id: true,
         name: true,
         email: true,
-        firstName: true,
-        lastName: true,
         phone: true,
         dateOfBirth: true,
         avatar: true,
@@ -111,8 +109,8 @@ export async function GET(request: NextRequest) {
       name: user.name,
       email: user.email,
       profile: {
-        firstName: user.firstName,
-        lastName: user.lastName,
+        firstName: user.name ? user.name.split(' ')[0] : null,
+        lastName: user.name ? user.name.split(' ').slice(1).join(' ') : null,
         phone: user.phone,
         dateOfBirth: user.dateOfBirth ? new Date(user.dateOfBirth).toISOString() : null,
         avatar: user.avatar,
@@ -136,7 +134,7 @@ export async function PUT(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user?.email) {
+    if (!session?.user?.id) {
       return new Response('Unauthorized', { status: 401 });
     }
 
@@ -192,23 +190,23 @@ export async function PUT(request: NextRequest) {
       return new Response(`Validation errors: ${validationErrors.join(', ')}`, { status: 400 });
     }
 
-    // Debug: Log email being used to find user
-    console.log('Attempting to find user with email:', session.user.email);
+    // Debug: Log ID being used to find user
+    console.log('Attempting to find user with ID:', session.user.id);
 
-    // Debug: Check if session user has email
-    if (!session?.user?.email) {
-      console.log('Session user email is missing');
-      return new Response('Unauthorized - email missing from session', { status: 401 });
+    // Debug: Check if session user has ID
+    if (!session?.user?.id) {
+      console.log('Session user ID is missing');
+      return new Response('Unauthorized - ID missing from session', { status: 401 });
     }
 
     // Get the user
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { id: session.user.id },
       select: { id: true, avatar: true }
     });
 
     if (!user) {
-      console.log('User not found in database with email:', session.user.email);
+      console.log('User not found in database with ID:', session.user.id);
       return new Response('User not found', { status: 404 });
     } else {
       console.log('User found in database:', user.id);
@@ -244,8 +242,7 @@ export async function PUT(request: NextRequest) {
 
     // Prepare update data, being careful with potential undefined values
     const updateData: any = {
-      firstName: body.firstName || null,
-      lastName: body.lastName || null,
+      name: `${body.firstName || ''} ${body.lastName || ''}`.trim() || null,
       phone: body.phone || null,
       dateOfBirth,
       gender: body.gender || null,
@@ -263,14 +260,14 @@ export async function PUT(request: NextRequest) {
 
     // Update the user directly with profile fields
     const updatedUser = await prisma.user.update({
-      where: { email: session.user.email },
+      where: { id: session.user.id },
       data: updateData
     });
 
     // Return only the profile-related fields for compatibility
     const userProfile = {
-      firstName: updatedUser.firstName || null,
-      lastName: updatedUser.lastName || null,
+      firstName: updatedUser.name ? updatedUser.name.split(' ')[0] : null,
+      lastName: updatedUser.name ? updatedUser.name.split(' ').slice(1).join(' ') : null,
       phone: updatedUser.phone || null,
       dateOfBirth: updatedUser.dateOfBirth ? new Date(updatedUser.dateOfBirth).toISOString() : null,
       avatar: updatedUser.avatar || null,

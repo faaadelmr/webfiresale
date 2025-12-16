@@ -1,28 +1,20 @@
-// src/app/layout.tsx
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
-import SessionProviderWrapper from '@/components/SessionProviderWrapper'
-import './globals.css'
-
-const inter = Inter({ subsets: ['latin'] })
+import type {Metadata} from 'next';
+import './globals.css';
+import ClientLayout from './ClientLayout';
 
 export const metadata: Metadata = {
-  title: 'WebFireSale - Authentication Demo',
-  description: 'Next.js app with NextAuth, Prisma, and DaisyUI',
-}
+  title: 'FireSale',
+  description: 'Rebut barang yang kamu inginkan dengan cara lebih mudah dan effisien.',
+};
 
 export default function RootLayout({
   children,
-}: {
-  children: React.ReactNode
-}) {
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <html lang="en" data-theme="light">
-      <body className={inter.className}>
-        <SessionProviderWrapper>
-          {children}
-        </SessionProviderWrapper>
-      </body>
-    </html>
-  )
+    <ClientLayout>
+      {children}
+    </ClientLayout>
+  );
 }

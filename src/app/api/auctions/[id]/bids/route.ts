@@ -1,0 +1,161 @@
+import { NextRequest } from 'next/server';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { getServerSession } from 'next-auth';
+import prisma from '@/lib/prisma';
+import { Decimal } from '@prisma/client/runtime/library';
+
+export async function GET(
+    request: NextRequest,
+    { params }: { params: { id: string } }
+) {
+    try {
+        const bids = await prisma.bid.findMany({
+            where: {
+                auctionId: params.id,
+            },
+            include: {
+                user: {
+                    select: {
+                        name: true,
+                        email: true,
+                    },
+                },
+            },
+            orderBy: {
+                amount: 'desc',
+            },
+        });
+
+        const transformedBids = bids.map(bid => ({
+            auctionId: bid.auctionId,
+            user: bid.user.name || bid.user.email || 'Anonymous',
+            amount: Number(bid.amount),
+            date: bid.createdAt,
+        }));
+
+        return new Response(JSON.stringify(transformedBids), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+        });
+    } catch (error) {
+        console.error('Error fetching bids:', error);
+        return new Response(JSON.stringify({
+            message: 'Internal server error',
+            error: error instanceof Error ? error.message : 'Unknown error'
+        }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+        });
+    }
+}
+
+export async function POST(
+    request: NextRequest,
+    { params }: { params: { id: string } }
+) {
+    try {
+        const session = await getServerSession(authOptions);
+
+        if (!session || !session.user) {
+            return new Response(JSON.stringify({ message: 'Unauthorized' }), {
+                status: 401,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        const data = await request.json();
+
+        // Validate required fields
+        if (!data.amount) {
+            return new Response(JSON.stringify({ message: 'Missing bid amount' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        // Check if auction exists and is active
+        const auction = await prisma.auction.findUnique({
+            where: { id: params.id },
+        });
+
+        if (!auction) {
+            return new Response(JSON.stringify({ message: 'Auction not found' }), {
+                status: 404,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        if (auction.status !== 'active') {
+            return new Response(JSON.stringify({ message: 'Auction is not active' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        // Check if bid is higher than current bid
+        const currentHighestBid = auction.currentBid ? Number(auction.currentBid) : Number(auction.minBid);
+        if (data.amount <= currentHighestBid) {
+            return new Response(JSON.stringify({
+                message: `Bid must be higher than current bid (${currentHighestBid})`
+            }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        // Create bid and update auction in a transaction
+        const result = await prisma.$transaction(async (tx) => {
+            // Create the bid
+            const bid = await tx.bid.create({
+                data: {
+                    auctionId: params.id,
+                    userId: session.user.id,
+                    amount: new Decimal(data.amount),
+                },
+                include: {
+                    user: {
+                        select: {
+                            name: true,
+                            email: true,
+                        },
+                    },
+                },
+            });
+
+            // Update auction with new highest bid
+            const updatedAuction = await tx.auction.update({
+                where: { id: params.id },
+                data: {
+                    currentBid: new Decimal(data.amount),
+                    bidCount: {
+                        increment: 1,
+                    },
+                },
+            });
+
+            return { bid, auction: updatedAuction };
+        });
+
+        return new Response(JSON.stringify({
+            message: 'Bid placed successfully',
+            bid: {
+                auctionId: result.bid.auctionId,
+                user: result.bid.user.name || result.bid.user.email || 'Anonymous',
+                amount: Number(result.bid.amount),
+                date: result.bid.createdAt,
+            }
+        }), {
+            status: 201,
+            headers: { 'Content-Type': 'application/json' },
+        });
+    } catch (error) {
+        console.error('Error placing bid:', error);
+        return new Response(JSON.stringify({
+            message: 'Internal server error',
+            error: error instanceof Error ? error.message : 'Unknown error'
+        }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+        });
+    }
+}

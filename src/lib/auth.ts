@@ -62,6 +62,7 @@ export async function findOrCreateOAuthUser(profile: any, provider: string) {
           providerId: profile.id?.toString(),
           provider,
           name: profile.name || profile.displayName || user.name,
+          avatar: profile.picture || profile.avatar || user.avatar, // Save avatar from OAuth if available
         }
       })
     }
@@ -75,6 +76,7 @@ export async function findOrCreateOAuthUser(profile: any, provider: string) {
       email: profile.email,
       providerId: profile.id?.toString(),
       provider,
+      avatar: profile.picture || profile.avatar, // Save avatar from OAuth if available
       role: 'customer', // Default role for new users
     }
   })
@@ -92,18 +94,22 @@ export async function getCurrentSession() {
 
 /**
  * Require a specific role for server-side operations
- * @param requiredRole - The role required to perform the action
+ * @param requiredRole - The role required to perform the action, or an array of roles
  * @throws Error if the user doesn't have the required role
  */
-export async function requireRole(requiredRole: Role) {
+export async function requireRole(requiredRole: Role | Role[]) {
   const session = await getCurrentSession();
 
   if (!session || !session.user?.role) {
     throw new Error('Authentication required');
   }
 
-  if (session.user.role !== requiredRole) {
-    throw new Error(`Access denied: Role '${requiredRole}' required`);
+  // Convert single role to array for consistent processing
+  const requiredRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+
+  if (!requiredRoles.includes(session.user.role as Role)) {
+    const rolesList = requiredRoles.join(', ');
+    throw new Error(`Access denied: One of these roles required: ${rolesList}`);
   }
 
   return session;

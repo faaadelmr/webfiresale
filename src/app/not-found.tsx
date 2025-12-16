@@ -42,13 +42,13 @@ export default function NotFound() {
                   </motion.button>
                 </Link>
                 
-                <Link href="/dashboard">
+                <Link href="/admin">
                   <motion.button
                     className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all"
                     whileHover={{ scale: 1.05, y: -2 }}
                     whileTap={{ scale: 0.95 }}
                   >
-                    Dashboard
+                    Admin
                   </motion.button>
                 </Link>
               </div>

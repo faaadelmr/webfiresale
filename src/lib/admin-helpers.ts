@@ -200,8 +200,6 @@ export async function updateUserProfile(currentUserId: string, userId: string, p
   email?: string;
   avatar?: string;
   phone?: string;
-  firstName?: string;
-  lastName?: string;
   gender?: string;
   dateOfBirth?: Date;
   isActive?: boolean;
@@ -242,12 +240,6 @@ export async function updateUserProfile(currentUserId: string, userId: string, p
   }
   if (profileData.phone) {
     sanitizedProfileData.phone = sanitizeInput(profileData.phone);
-  }
-  if (profileData.firstName) {
-    sanitizedProfileData.firstName = sanitizeInput(profileData.firstName);
-  }
-  if (profileData.lastName) {
-    sanitizedProfileData.lastName = sanitizeInput(profileData.lastName);
   }
   if (profileData.gender) {
     sanitizedProfileData.gender = profileData.gender;

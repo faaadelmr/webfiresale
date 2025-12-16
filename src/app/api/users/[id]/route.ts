@@ -39,8 +39,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         email: true,
         avatar: true,
         phone: true,
-        firstName: true,
-        lastName: true,
         gender: true,
         dateOfBirth: true,
         role: true,

@@ -8,15 +8,18 @@ import prisma from '@/lib/prisma';
 
 // Define protected routes that need role-based access control
 const protectedRoutes = [
-  '/dashboard',
   '/profile',
+  '/admin',
   // Add other protected routes as needed
 ];
 
 // Define route-to-resource mapping for ACL
 const routeToResourceMap: Record<string, string> = {
-  '/dashboard': 'dashboard',
   '/profile': 'profile',
+  '/admin': 'admin',
+  '/admin/users': 'admin-users',
+  '/admin/products': 'admin-products',
+  '/admin/orders': 'admin-orders',
   // Add more mappings as needed
 };
 
@@ -56,25 +59,22 @@ export default withAuth(
       // Determine the resource based on the path
       let resource: string | undefined;
 
-      // Check exact matches first
-      if (pathname in routeToResourceMap) {
-        resource = routeToResourceMap[pathname];
-      } else {
-        // Look for partial matches (e.g., /dashboard/settings matches /dashboard)
-        for (const [route, res] of Object.entries(routeToResourceMap)) {
-          if (pathname.startsWith(route + '/')) {
-            resource = res;
-            break;
-          }
-        }
+      // Check for the most specific match first (exact and then by length, longest first)
+      const sortedRoutes = Object.keys(routeToResourceMap).sort((a, b) => b.length - a.length);
 
-        // If no specific resource found, use the base route
-        if (!resource) {
-          const baseRoute = protectedRoutes.find(route => pathname === route || pathname.startsWith(route + '/'));
-          if (baseRoute) {
-            // Get the resource name from the route (e.g., /dashboard -> dashboard)
-            resource = baseRoute.replace('/', '');
-          }
+      for (const route of sortedRoutes) {
+        if (pathname === route || pathname.startsWith(route + '/')) {
+          resource = routeToResourceMap[route];
+          break;
+        }
+      }
+
+      // If no specific resource found, use the base route
+      if (!resource) {
+        const baseRoute = protectedRoutes.find(route => pathname === route || pathname.startsWith(route + '/'));
+        if (baseRoute) {
+          // Get the resource name from the route (e.g., /admin -> admin)
+          resource = baseRoute.replace('/', '');
         }
       }
 

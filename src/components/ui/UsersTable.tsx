@@ -256,7 +256,7 @@ export default function UsersTable({ users, session, onRefresh }: UsersTableProp
                   <td>
                     <div className="flex flex-wrap gap-2">
                       <a
-                        href={`/dashboard/users/${user.id}/edit`}
+                        href={`/admin/users/${user.id}/edit`}
                         className={`btn btn-xs ${user.id === session.user.id ? 'btn-disabled' : 'btn-outline'}`}
                         title={user.id === session.user.id ? 'Cannot edit yourself' : 'Edit User'}
                       >

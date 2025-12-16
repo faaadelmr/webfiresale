@@ -79,6 +79,7 @@ export const authOptions = {
         token.id = user.id;
         token.name = user.name;
         token.email = user.email;
+        token.avatar = user.avatar;
         token.provider = user.provider || (account ? account.provider : 'credentials');
 
         // For new users (not yet in database), we pass role from validateUser/findOrCreateOAuthUser
@@ -88,22 +89,29 @@ export const authOptions = {
       }
       // Subsequent token refreshes - fetch user data from database
       else if (token.email) {
-        const dbUser = await prisma.user.findUnique({
-          where: { email: token.email }
-        });
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { email: token.email }
+          });
 
-        // Check if user is soft-deleted, if so don't return user data
-        if (dbUser && (!dbUser.isActive || dbUser.deletedAt)) {
-          // Return null to invalidate the session
+          // Check if user is soft-deleted, if so don't return user data
+          if (dbUser && (!dbUser.isActive || dbUser.deletedAt)) {
+            // Return null to invalidate the session
+            return {};
+          }
+
+          if (dbUser) {
+            token.id = dbUser.id;
+            token.name = dbUser.name || dbUser.email.split('@')[0]; // Use email prefix as name if not set
+            token.email = dbUser.email;
+            token.avatar = dbUser.avatar;
+            token.role = dbUser.role;
+            token.provider = dbUser.provider;
+          }
+        } catch (error) {
+          console.error('Error fetching user in JWT callback:', error);
+          // Return empty token to invalidate session on error
           return {};
-        }
-
-        if (dbUser) {
-          token.id = dbUser.id;
-          token.name = dbUser.name || dbUser.email.split('@')[0]; // Use email prefix as name if not set
-          token.email = dbUser.email;
-          token.role = dbUser.role;
-          token.provider = dbUser.provider;
         }
       }
 
@@ -119,6 +127,7 @@ export const authOptions = {
         session.user.id = token.id as string;
         session.user.name = token.name;
         session.user.email = token.email;
+        session.user.avatar = token.avatar;
         session.user.provider = token.provider;
         session.user.role = token.role;
       }
@@ -132,7 +141,7 @@ export const authOptions = {
       email?: { verificationRequest?: boolean };
       credentials?: any
     }) {
-      const { user, account, profile, email } = params;
+      const { user, account, profile, } = params;
 
       // Handle OAuth sign-in
       if (account?.provider && account.provider !== 'credentials' && profile) {
@@ -165,17 +174,23 @@ export const authOptions = {
       // For credentials sign-in, allow it to proceed through the normal flow
       return true;
     },
-    async redirect({ url, baseUrl }: { url: string; baseUrl: string }) {
-      // Get the user's role from the JWT token
-      // This is called after the session is established
-      // We'll check the role and redirect appropriately
-      // For now, we'll return the default dashboard redirect
-      // The actual role-based redirect will be handled in middleware or other ways
+    async redirect({ url, baseUrl, }: { url: string; baseUrl: string }) {
+      // Allow redirects to sign-in page during logout
+      if (url.includes('/signin') || url.includes('/auth')) {
+        return url;
+      }
 
-      // If the user is a customer, redirect to home page
-      // Otherwise, allow the default redirect to dashboard
-      // This requires access to the user's role, which is not directly available here
-      // So we'll need to implement this redirect logic after sign-in in the frontend
+      // Allow default redirect to home page if user is customer
+      if (url === `${baseUrl}/`) {
+        return baseUrl;
+      }
+
+      // For other app routes, allow relative redirects or redirects to the same origin
+      if (url.startsWith(baseUrl)) {
+        return url;
+      }
+
+      // For all other cases, return the base URL
       return baseUrl;
     }
   },

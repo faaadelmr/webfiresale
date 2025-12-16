@@ -8,44 +8,222 @@ datasource db {
 }
 
 model User {
-  id          String    @id @default(cuid())
-  name        String?
-  email       String    @unique
-  password    String?
-  provider    String?
-  providerId  String?
-  avatar      String?
-  phone       String?
-  dateOfBirth DateTime?
-  firstName   String?
-  lastName    String?
-  gender      String?
-  preferences Json?
-  role        String    @default("USER")
-  isVerified  Boolean   @default(false)
-  isActive    Boolean   @default(true)
-  deletedAt   DateTime?
-  tempPassword String?  // Temporary password for admin reset
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  addresses   Address[]
+  id           String    @id @default(cuid())
+  name         String?
+  email        String    @unique
+  password     String?
+  provider     String?
+  providerId   String?
+  avatar       String?
+  phone        String?
+  dateOfBirth  DateTime?
+  gender       String?
+  preferences  Json?
+  role         String    @default("customer") // "customer", "admin", "superadmin"
+  isVerified   Boolean   @default(false)
+  isActive     Boolean   @default(true)
+  deletedAt    DateTime?
+  tempPassword String?   // Temporary password for admin reset
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  // Relations
+  addresses    Address[]
+  orders       Order[]
+  bids         Bid[]
+  cart         Cart?    // One-to-one relation with Cart (user can have only one cart)
+  reviews      Review[]
 }
 
 model Address {
   id         String   @id @default(cuid())
   userId     String
-  firstName  String
-  lastName   String
+  name       String
+  provinceId String
+  cityId     String
+  districtId String
+  villageId  String
   street     String
-  city       String
-  state      String
+  rtRwBlock  String
   postalCode String
-  country    String
   isDefault  Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   label      String?
   notes      String?
-  phone      String?
+  phone      String
+
+  // Relations
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders     Order[]  // Addresses can be used in multiple orders
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  image       String
+  originalPrice Decimal
+  quantityAvailable Int
+  weight      Int      // Weight in grams
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  // Relations
+  auctions    Auction[]
+  flashSales  FlashSale[]
+  orderItems  OrderItem[]
+  cartItems   CartItem[]  // Back-reference to cart items that include this product
+  reviews     Review[]
+}
+
+model Auction {
+  id          String   @id @default(cuid())
+  productId   String
+  minBid      Decimal
+  maxBid      Decimal?
+  startDate   DateTime
+  endDate     DateTime
+  currentBid  Decimal?
+  bidCount    Int      @default(0)
+  status      String   @default("active") // "upcoming", "active", "ended", "sold"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  // Relations
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  bids        Bid[]
+}
+
+model Bid {
+  id          String   @id @default(cuid())
+  auctionId   String
+  userId      String
+  amount      Decimal
+  createdAt   DateTime @default(now())
+  // Relations
+  auction     Auction  @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+}
+
+model FlashSale {
+  id                  String   @id @default(cuid())
+  productId           String
+  flashSalePrice      Decimal
+  startDate           DateTime
+  endDate             DateTime
+  limitedQuantity     Int
+  sold                Int      @default(0)
+  status              String   @default("active") // "upcoming", "active", "ended", "sold-out"
+  maxOrderQuantity    Int?     // Maximum quantity a single user can order
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  // Relations
+  product             Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  cartItems           CartItem[]  // Back-reference to cart items that include this flash sale product
+}
+
+model Order {
+  id              String       @id @default(cuid())
+  userId          String
+  status          String       @default("Pending") // Pending, Processing, Shipped, Delivered, Cancelled, etc.
+  totalAmount     Decimal
+  paymentProof    String?      // URL or identifier for payment proof image
+  shippingCode    String?      // Tracking number
+  shippingName    String?      // Courier service name (JNE, JNT, SiCepat, etc.)
+  shippingCost    Decimal?
+  shippingCity    String?
+  addressId       String
+  expiresAt       DateTime?    // When the order expires if not paid
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  // Relations
+  user            User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  address         Address      @relation(fields: [addressId], references: [id], onDelete: Restrict)
+  orderItems      OrderItem[]
+  refundDetails   RefundDetails[]
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  productId   String
+  quantity    Int
+  price       Decimal  // Price at time of purchase
+  // Relations
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+}
+
+model Cart {
+  id          String    @id @default(cuid())
+  userId      String    @unique  // Each user can only have one cart
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  // Relations
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       CartItem[]
+}
+
+model CartItem {
+  id              String   @id @default(cuid())
+  cartId          String
+  productId       String
+  quantity        Int      // Quantity in the cart
+  price           Decimal  // Price at the time it was added to cart (for flash sale items, this would be flash sale price)
+  flashSaleId     String?  // Optional - if this item was added from a flash sale
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  // Relations
+  cart            Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  flashSale       FlashSale? @relation(fields: [flashSaleId], references: [id], onDelete: Restrict)
+}
+
+model ShippingOption {
+  id        String   @id @default(cuid())
+  cityId    String   // Destination city ID that connects to Address.cityId
+  cost      Decimal  // Cost per kg
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RefundDetails {
+  id              String   @id @default(cuid())
+  orderId         String
+  reason          String
+  processedDate   DateTime
+  bankName        String?
+  accountNumber   String?
+  accountName     String?
+  refundedDate    DateTime?
+  refundProof     String?  // URL or base64 string of refund proof image
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  // Relations
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model GeneralSettings {
+  id              String   @id @default(cuid())
+  bannerEnabled   Boolean  @default(false)
+  bannerImage     String?  // Base64 or URL
+  paymentTimeLimit Int     @default(5)  // in minutes
+  businessAddress String?
+  businessEmail   String?  // Email for business contact
+  businessLogoUrl String?  // Logo URL or base64 for shipping label
+  printSize       String   @default("a4")  // "a4" or other sizes
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
