@@ -227,3 +227,18 @@ model Review {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
+
+// Stock reservation for FIFO locking - tracks locked inventory for checkout/auction winners
+model StockReservation {
+  id            String    @id @default(cuid())
+  userId        String
+  productId     String?
+  flashSaleId   String?
+  auctionId     String?
+  quantity      Int       @default(1)
+  type          String    // "flashsale" or "auction"
+  status        String    @default("active") // "active", "completed", "expired", "cancelled"
+  expiresAt     DateTime  // When the reservation expires
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}

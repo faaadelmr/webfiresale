@@ -3,12 +3,12 @@
 import { Header } from "@/components/header";
 import { BuyerForm } from "@/components/buyer-form";
 import { useCart } from "@/hooks/use-cart";
-import { formatPrice, getGeneralSettingsFromStorage, getProfileFromStorage, getAuctionById, updateSoldProductQuantity, calculateShippingCostFromCart } from "@/lib/utils";
+import { formatPrice, getGeneralSettingsFromStorage, getProfileFromStorage, updateSoldProductQuantity, calculateShippingCostFromCart } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, User, Mail, AlertCircle } from "lucide-react";
+import { ArrowLeft, User, Mail, AlertCircle, Clock } from "lucide-react";
 import { motion } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Order, AddressDetails, ShippingOption, GeneralSettings, UserProfile } from "@/lib/types";
 
@@ -33,6 +33,11 @@ function CheckoutContent() {
     const [isAuctionCheckout, setIsAuctionCheckout] = useState(false);
     const { toast } = useToast();
     const router = useRouter();
+
+    // Stock reservation tracking
+    const [reservationIds, setReservationIds] = useState<string[]>([]);
+    const [reservationExpiry, setReservationExpiry] = useState<Date | null>(null);
+    const reservationsCreatedRef = useRef(false);
 
     useEffect(() => {
         const loadCheckoutData = async () => {
@@ -86,16 +91,139 @@ function CheckoutContent() {
 
             // Check if this is an auction checkout
             if (auctionId) {
-                const auctionData = getAuctionById(auctionId);
-                if (auctionData) {
-                    setAuctionItem(auctionData);
-                    setIsAuctionCheckout(true);
+                try {
+                    const auctionResponse = await fetch(`/api/auctions/${auctionId}`);
+                    if (auctionResponse.ok) {
+                        const auctionData = await auctionResponse.json();
+                        setAuctionItem(auctionData);
+                        setIsAuctionCheckout(true);
+                    }
+                } catch (error) {
+                    console.error('Error fetching auction data:', error);
                 }
             }
         };
 
         loadCheckoutData();
     }, [auctionId]);
+
+    // Create stock reservations for flash sale items and auctions
+    useEffect(() => {
+        // Skip if already created
+        if (reservationsCreatedRef.current) return;
+
+        // Skip if cart is still loading (empty but might have items)
+        // We check isAuctionCheckout to allow auction checkout without cart items
+        const hasFlashSaleItems = cartItems.some(item => item.product.flashSaleId);
+
+        // If no flash sale items and no auction, nothing to reserve
+        if (!hasFlashSaleItems && !auctionId) {
+            return;
+        }
+
+        const createReservations = async () => {
+            console.log('Creating reservations for', cartItems.length, 'cart items, auctionId:', auctionId);
+            const newReservationIds: string[] = [];
+            let earliestExpiry: Date | null = null;
+
+            // Create reservations for flash sale items in cart
+            for (const item of cartItems) {
+                if (item.product.flashSaleId) {
+                    try {
+                        console.log('Creating reservation for flashSale:', item.product.flashSaleId, 'qty:', item.quantity);
+                        const response = await fetch('/api/reservations', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                type: 'flashsale',
+                                flashSaleId: item.product.flashSaleId,
+                                quantity: item.quantity,
+                            }),
+                        });
+
+                        if (response.ok) {
+                            const data = await response.json();
+                            console.log('Reservation created:', data);
+                            if (data.reservationId) {
+                                newReservationIds.push(data.reservationId);
+                                if (data.expiresAt) {
+                                    const expiry = new Date(data.expiresAt);
+                                    if (!earliestExpiry || expiry < earliestExpiry) {
+                                        earliestExpiry = expiry;
+                                    }
+                                }
+                            }
+                        } else {
+                            const errorData = await response.json();
+                            console.error('Reservation failed:', errorData);
+                        }
+                    } catch (error) {
+                        console.error('Error creating flash sale reservation:', error);
+                    }
+                }
+            }
+
+            // Create reservation for auction checkout
+            if (auctionId) {
+                try {
+                    console.log('Creating reservation for auction:', auctionId);
+                    const response = await fetch('/api/reservations', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            type: 'auction',
+                            auctionId,
+                        }),
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        console.log('Auction reservation created:', data);
+                        if (data.reservationId) {
+                            newReservationIds.push(data.reservationId);
+                            if (data.expiresAt) {
+                                const expiry = new Date(data.expiresAt);
+                                if (!earliestExpiry || expiry < earliestExpiry) {
+                                    earliestExpiry = expiry;
+                                }
+                            }
+                        }
+                    } else {
+                        const errorData = await response.json();
+                        console.error('Auction reservation failed:', errorData);
+                    }
+                } catch (error) {
+                    console.error('Error creating auction reservation:', error);
+                }
+            }
+
+            console.log('Reservations created:', newReservationIds);
+            setReservationIds(newReservationIds);
+            setReservationExpiry(earliestExpiry);
+            reservationsCreatedRef.current = true;
+        };
+
+        createReservations();
+
+        // Cleanup: cancel reservations when leaving checkout without completing
+        return () => {
+            // Note: Reservations will expire automatically, but we can cancel explicitly
+            // This is done via beforeunload event handler below
+        };
+    }, [cartItems, auctionId]);
+
+    // Cancel reservations on page unload (if not completed)
+    useEffect(() => {
+        const handleBeforeUnload = () => {
+            // Send beacon to cancel reservations (fire-and-forget)
+            reservationIds.forEach(id => {
+                navigator.sendBeacon(`/api/reservations?id=${id}`, '');
+            });
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [reservationIds]);
 
     // Calculate shipping cost based on product weight
     const [shippingCost, setShippingCost] = useState(0);

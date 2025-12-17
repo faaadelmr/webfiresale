@@ -5,6 +5,7 @@ import { Order } from '@/lib/types';
 import prisma from '@/lib/prisma';
 import { mockRegions } from '@/lib/regions';
 import { Decimal } from '@prisma/client/runtime/library';
+import { Prisma } from '@prisma/client';
 import { enrichAddressWithNames } from '@/lib/region-utils';
 
 // GET endpoint to retrieve a specific order
@@ -74,7 +75,7 @@ export async function GET(
     }
 
     // Convert Prisma Decimal to number for frontend compatibility
-    const orderItems = order.orderItems.map(item => ({
+    const orderItems = order.orderItems.map((item: typeof order.orderItems[number]) => ({
       product: {
         id: item.product.id,
         name: item.product.name,
@@ -279,6 +280,55 @@ export async function PATCH(
       // Clear expiration when waiting for confirmation
       if (status === 'Waiting for Confirmation') {
         updateData.expiresAt = null;
+      }
+
+      // If cancelling the order, restore stock
+      if (status === 'Cancelled' && order.status !== 'Cancelled') {
+        // Get order items to restore stock
+        const orderItems = await prisma.orderItem.findMany({
+          where: { orderId: id },
+          include: { product: true },
+        });
+
+        // Restore stock in a transaction
+        await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          for (const item of orderItems) {
+            // Restore product quantity
+            await tx.product.update({
+              where: { id: item.productId },
+              data: {
+                quantityAvailable: {
+                  increment: item.quantity,
+                },
+              },
+            });
+
+            // Check if this was a flash sale item and restore sold count
+            const flashSale = await tx.flashSale.findFirst({
+              where: {
+                productId: item.productId,
+              },
+              orderBy: {
+                createdAt: 'desc',
+              },
+            });
+
+            if (flashSale && flashSale.sold >= item.quantity) {
+              await tx.flashSale.update({
+                where: { id: flashSale.id },
+                data: {
+                  sold: {
+                    decrement: item.quantity,
+                  },
+                  // If was sold-out, reactivate if there's stock
+                  status: flashSale.sold - item.quantity < flashSale.limitedQuantity && flashSale.status === 'sold-out'
+                    ? 'active'
+                    : flashSale.status,
+                },
+              });
+            }
+          }
+        });
       }
 
       // Update the order

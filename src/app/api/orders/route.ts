@@ -368,6 +368,35 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // Reduce product quantity for each order item
+      for (const item of orderData.items) {
+        await tx.product.update({
+          where: { id: item.product.id },
+          data: {
+            quantityAvailable: {
+              decrement: item.quantity,
+            },
+          },
+        });
+      }
+
+      // Complete any active reservations for this user and these items
+      // Mark flash sale reservations as completed
+      for (const item of orderData.items) {
+        if (item.product.flashSaleId) {
+          await tx.stockReservation.updateMany({
+            where: {
+              userId: userId,
+              flashSaleId: item.product.flashSaleId,
+              status: 'active',
+            },
+            data: {
+              status: 'completed',
+            },
+          });
+        }
+      }
+
       return order;
     });
 

@@ -3,6 +3,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { getServerSession } from 'next-auth';
 import prisma from '@/lib/prisma';
 import { Decimal } from '@prisma/client/runtime/library';
+import { Prisma } from '@prisma/client';
 
 export async function GET(
     request: NextRequest,
@@ -27,7 +28,7 @@ export async function GET(
             },
         });
 
-        const transformedBids = bids.map(bid => ({
+        const transformedBids = bids.map((bid: typeof bids[number]) => ({
             auctionId: bid.auctionId,
             user: bid.user.name || bid.user.email || 'Anonymous',
             amount: Number(bid.amount),
@@ -106,7 +107,7 @@ export async function POST(
         }
 
         // Create bid and update auction in a transaction
-        const result = await prisma.$transaction(async (tx) => {
+        const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
             // Create the bid
             const bid = await tx.bid.create({
                 data: {
@@ -124,6 +125,9 @@ export async function POST(
                 },
             });
 
+            // Check if this is a Buy Now transaction
+            const isBuyNow = data.isBuyNow === true && auction.maxBid && data.amount >= Number(auction.maxBid);
+
             // Update auction with new highest bid
             const updatedAuction = await tx.auction.update({
                 where: { id },
@@ -132,20 +136,24 @@ export async function POST(
                     bidCount: {
                         increment: 1,
                     },
+                    // If Buy Now, set status to sold
+                    ...(isBuyNow && { status: 'sold' }),
                 },
             });
 
-            return { bid, auction: updatedAuction };
+            return { bid, auction: updatedAuction, isBuyNow };
         });
 
         return new Response(JSON.stringify({
-            message: 'Bid placed successfully',
+            message: result.isBuyNow ? 'Purchase successful' : 'Bid placed successfully',
             bid: {
                 auctionId: result.bid.auctionId,
                 user: result.bid.user.name || result.bid.user.email || 'Anonymous',
                 amount: Number(result.bid.amount),
                 date: result.bid.createdAt,
-            }
+            },
+            isBuyNow: result.isBuyNow || false,
+            auctionStatus: result.auction.status,
         }), {
             status: 201,
             headers: { 'Content-Type': 'application/json' },

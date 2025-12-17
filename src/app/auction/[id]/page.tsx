@@ -208,11 +208,11 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
       });
 
       if (response.ok) {
+        const result = await response.json();
         toast({ title: `Produk berhasil dibeli dengan harga ${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(auction.maxBid)}` });
-        setAuctionEnded(true);
-        setWinner({ user: "Anda", amount: auction.maxBid });
-        setIsHighestBidder(true);
-        await fetchAuction();
+
+        // Redirect to checkout immediately
+        window.location.href = `/checkout?auctionId=${auction.id}`;
       } else {
         const error = await response.json();
         toast({ title: "Gagal membeli produk", description: error.message, variant: "destructive" });

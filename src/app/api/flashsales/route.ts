@@ -32,24 +32,58 @@ export async function GET(request: NextRequest) {
             },
         });
 
-        // If forCart is true, transform to CartProduct format
+        // If forCart is true, transform to CartProduct format with reservation-aware stock
         if (forCart) {
-            const transformedFlashSales = flashSales.map(fs => ({
-                id: fs.product.id,
-                name: fs.product.name,
-                description: fs.product.description,
-                image: fs.product.image,
-                originalPrice: Number(fs.product.originalPrice),
-                quantity: fs.product.quantityAvailable,
-                weight: fs.product.weight,
-                flashSaleId: fs.id,
-                flashSalePrice: Number(fs.flashSalePrice),
-                maxOrderQuantity: fs.maxOrderQuantity,
-                limitedQuantity: fs.limitedQuantity,
-                sold: fs.sold,
-                startDate: fs.startDate,
-                endDate: fs.endDate,
-            }));
+            // Get active reservations for all flash sales (with fallback if model not generated yet)
+            const flashSaleIds = flashSales.map((fs: typeof flashSales[number]) => fs.id);
+            let reservedMap = new Map<string, number>();
+
+            try {
+                const activeReservations = await prisma.stockReservation.groupBy({
+                    by: ['flashSaleId'],
+                    where: {
+                        flashSaleId: { in: flashSaleIds },
+                        status: 'active',
+                        expiresAt: { gt: new Date() },
+                    },
+                    _sum: {
+                        quantity: true,
+                    },
+                });
+
+                // Create a map of reserved quantities
+                activeReservations.forEach((r: typeof activeReservations[number]) => {
+                    if (r.flashSaleId) {
+                        reservedMap.set(r.flashSaleId, r._sum.quantity || 0);
+                    }
+                });
+            } catch (error) {
+                // StockReservation model might not exist yet - continue without reservations
+                console.warn('StockReservation query failed, continuing without reservation data:', error);
+            }
+
+            const transformedFlashSales = flashSales.map((fs: typeof flashSales[number]) => {
+                const reservedQty = reservedMap.get(fs.id) || 0;
+                const availableStock = Math.max(0, fs.limitedQuantity - fs.sold - reservedQty);
+
+                return {
+                    id: fs.product.id,
+                    name: fs.product.name,
+                    description: fs.product.description,
+                    image: fs.product.image,
+                    originalPrice: Number(fs.product.originalPrice),
+                    quantity: fs.product.quantityAvailable,
+                    weight: fs.product.weight,
+                    flashSaleId: fs.id,
+                    flashSalePrice: Number(fs.flashSalePrice),
+                    maxOrderQuantity: fs.maxOrderQuantity,
+                    limitedQuantity: fs.limitedQuantity,
+                    sold: fs.sold + reservedQty, // Include reserved as "virtually sold"
+                    availableStock, // Actual available stock
+                    startDate: fs.startDate,
+                    endDate: fs.endDate,
+                };
+            });
             return new Response(JSON.stringify(transformedFlashSales), {
                 status: 200,
                 headers: { 'Content-Type': 'application/json' },
@@ -57,7 +91,7 @@ export async function GET(request: NextRequest) {
         }
 
         // For admin page, return FlashSale format with embedded product
-        const adminFlashSales = flashSales.map(fs => ({
+        const adminFlashSales = flashSales.map((fs: typeof flashSales[number]) => ({
             id: fs.id,
             productId: fs.productId,
             flashSalePrice: Number(fs.flashSalePrice),
