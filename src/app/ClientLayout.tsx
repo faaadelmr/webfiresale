@@ -3,6 +3,7 @@ import { CartProvider } from '@/context/cart-context';
 import { ThemeProvider } from '@/context/ThemeContext';
 import PeriodicProcessor from '@/components/PeriodicProcessor';
 import SessionProviderWrapper from '@/components/SessionProviderWrapper';
+import { DeveloperEasterEgg } from '@/components/developer-easter-egg';
 import { ReactNode } from 'react';
 
 export default function ClientLayout({ children }: { children: ReactNode }) {
@@ -18,6 +19,7 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
           <ThemeProvider>
             <CartProvider>
               <PeriodicProcessor />
+              <DeveloperEasterEgg />
               {children}
             </CartProvider>
           </ThemeProvider>
@@ -26,3 +28,4 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
     </html>
   );
 }
+
