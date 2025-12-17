@@ -5,7 +5,7 @@ import { formatPrice } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { Order } from "@/lib/types";
 import { motion, AnimatePresence } from "framer-motion";
-import { Clock, Package, Truck, CheckCircle, XCircle, Coins, CreditCard, AlertCircle } from "lucide-react";
+import { Clock, Package, Truck, CheckCircle, XCircle, Coins, AlertCircle } from "lucide-react";
 import Link from "next/link";
 
 export default function NotificationPage() {
@@ -13,11 +13,29 @@ export default function NotificationPage() {
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Load user orders from localStorage
-    const userOrders = JSON.parse(localStorage.getItem('userOrders') || '[]') as Order[];
-    setOrders(userOrders);
+    // Fetch orders from API
+    const fetchOrders = async () => {
+      try {
+        const response = await fetch('/api/orders');
+        if (response.ok) {
+          const data = await response.json();
+          setOrders(data);
+        } else {
+          console.error('Failed to fetch orders');
+          setOrders([]);
+        }
+      } catch (error) {
+        console.error('Error fetching orders:', error);
+        setOrders([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchOrders();
   }, []);
 
   useEffect(() => {
@@ -38,7 +56,7 @@ export default function NotificationPage() {
 
     // Sort by date (newest first)
     result.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    
+
     setFilteredOrders(result);
   }, [orders, searchTerm, selectedStatus]);
 
@@ -89,6 +107,21 @@ export default function NotificationPage() {
 
   // Get all unique statuses for filter
   const allStatuses = Array.from(new Set(orders.map(order => order.status)));
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen w-full flex-col bg-base-100">
+        <Header />
+        <main className="container mx-auto flex-1 px-4 py-8">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex items-center justify-center py-20">
+              <span className="loading loading-spinner loading-lg"></span>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-base-100">
@@ -171,17 +204,17 @@ export default function NotificationPage() {
                             <div>
                               <h3 className="font-semibold text-lg flex items-center gap-2">
                                 Status Pesanan: {order.status}
-                                <span className={`badge ${order.status === 'Delivered' ? 'badge-success' : 
-                                  order.status === 'Cancelled' ? 'badge-error' : 
-                                  order.status === 'Refund Required' || order.status === 'Refund Processing' ? 'badge-warning' : 
-                                  'badge-primary'}`}>
-                                  #{order.id}
+                                <span className={`badge ${order.status === 'Delivered' ? 'badge-success' :
+                                  order.status === 'Cancelled' ? 'badge-error' :
+                                    order.status === 'Refund Required' || order.status === 'Refund Processing' ? 'badge-warning' :
+                                      'badge-primary'}`}>
+                                  #{order.id.substring(0, 8)}
                                 </span>
                               </h3>
                               <p className="text-base-content/70 mt-1">
-                                Diperbarui pada {new Date(order.date).toLocaleDateString('id-ID', { 
-                                  day: 'numeric', 
-                                  month: 'long', 
+                                Diperbarui pada {new Date(order.date).toLocaleDateString('id-ID', {
+                                  day: 'numeric',
+                                  month: 'long',
                                   year: 'numeric',
                                   hour: '2-digit',
                                   minute: '2-digit'

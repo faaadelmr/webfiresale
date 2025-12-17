@@ -299,10 +299,8 @@ export async function POST(request: NextRequest) {
           }
         });
         addressId = newAddress.id;
-      } else if (!existingAddress.city && !existingAddress.province) {
-        // This branch is no longer needed since we don't store names
-        // Remove the backfill logic
       }
+      // Note: existingAddress doesn't have city/province as we only store IDs now
 
       // Create the order
       const order = await tx.order.create({

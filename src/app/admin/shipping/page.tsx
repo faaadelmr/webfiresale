@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { PlusCircle, Edit, Trash2 } from "lucide-react";
-import { mockShippingOptions } from "@/lib/mock-data";
+
 import { formatPrice } from "@/lib/utils";
 import type { ShippingOption } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
@@ -31,13 +31,13 @@ export default function ShippingPage() {
           setShippingOptions(options);
         } else {
           console.error('Failed to fetch shipping options:', response.statusText);
-          // Fallback to mock data if API fails
-          setShippingOptions(mockShippingOptions);
+          // Fallback to empty array if API fails
+          setShippingOptions([]);
         }
       } catch (error) {
         console.error('Error fetching shipping options:', error);
-        // Fallback to mock data if API fails
-        setShippingOptions(mockShippingOptions);
+        // Fallback to empty array if API fails
+        setShippingOptions([]);
       }
     };
 

@@ -4,168 +4,194 @@
 import { Flame, LogOut, ShoppingCart, User, Bell } from "lucide-react"
 import { useCart } from "@/hooks/use-cart"
 import { CheckOrderDialog } from "./check-order-dialog"
+import { ThemeSwitcher } from "./ThemeSwitcher"
 import Link from "next/link"
-import { useState, useEffect } from "react"
-import { getProfileFromStorage } from "@/lib/utils"
-import type { UserProfile, Order } from "@/lib/types"
+import { useState, useEffect, useCallback } from "react"
+import type { Order } from "@/lib/types"
 import { useSession } from "next-auth/react"
 import { signOut } from "next-auth/react"
+
+interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  date: Date;
+  url: string;
+  read: boolean;
+}
 
 export function Header() {
   const { toggleCart, totalItems } = useCart()
   const { data: session, status } = useSession()
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [auctionWinCount, setAuctionWinCount] = useState(0);
-  const [orderUpdateCount, setOrderUpdateCount] = useState(0);
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(true);
 
-  useEffect(() => {
-    const fetchProfile = () => {
-      const storedProfile = getProfileFromStorage();
-      setProfile(storedProfile);
-    };
-    fetchProfile();
-
-    // Listen for storage changes to update profile in real-time
-    window.addEventListener('storage', fetchProfile);
-    return () => {
-      window.removeEventListener('storage', fetchProfile);
-    };
-  }, []);
-
-  // Use session avatar if available to override localStorage avatar
-  useEffect(() => {
-    if (session?.user?.avatar && profile && session.user.avatar !== profile.avatar) {
-      // Update profile with avatar from session if available
-      setProfile(prev =>
-        prev ? {
-          ...prev,
-          avatar: session.user.avatar || ''
-        } : null
-      );
-    }
-  }, [session?.user?.avatar, profile?.avatar]);
-
-  // Function to get all notifications
-  useEffect(() => {
-    // Get auction wins
-    const allAuctions = JSON.parse(localStorage.getItem('auctions') || '[]');
+  // Generate notifications from orders and auctions
+  const generateNotifications = useCallback((orders: Order[], auctions: any[]): Notification[] => {
+    const readNotifications = JSON.parse(localStorage.getItem('readNotifications') || '[]');
     const now = new Date();
 
-    const userWins = allAuctions.filter((auction: any) =>
-      now >= new Date(auction.endDate) &&
-      auction.status === 'sold' // Assuming sold status means won
-    ).length;
+    const allNotifications: Notification[] = [];
 
-    setAuctionWinCount(userWins);
-
-    // Get all orders for notifications
-    const allOrders: Order[] = JSON.parse(localStorage.getItem('userOrders') || '[]');
-
-    // Get all orders, not just those with specific status
-    const allOrdersWithUpdates = allOrders; // All orders can generate notifications
-
-    setOrderUpdateCount(allOrdersWithUpdates.length);
-
-    // Consolidate all notifications
-    const allNotifications = [
-      // Auction wins
-      ...allAuctions
-        .filter((auction: any) => now >= new Date(auction.endDate) && auction.status === 'sold')
-        .map((auction: any) => ({
+    // Auction wins
+    auctions
+      .filter((auction: any) => now >= new Date(auction.endDate) && (auction.status === 'sold' || auction.status === 'ended'))
+      .forEach((auction: any) => {
+        allNotifications.push({
           id: `auction-${auction.id}`,
           type: 'auction',
           title: 'Lelang Dimenangkan!',
           message: `${auction.product?.name || 'Item Lelang'} - ${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(auction.currentBid || auction.minBid)}`,
           date: new Date(auction.endDate),
           url: `/checkout?auctionId=${auction.id}`,
-          read: false // Default to unread
-        })),
-      // Order status updates
-      ...allOrdersWithUpdates.flatMap((order: Order) => {
-        const orderNotifications = [];
-
-        // Add order status update notification
-        orderNotifications.push({
-          id: `order-status-${order.id}`,
-          type: 'order',
-          title: `Status Pesanan: ${order.status}`,
-          message: `Pesanan #${order.id} - ${order.status}`,
-          date: order.date,
-          url: `/order-detail/${order.id}`,
-          read: false // Default to unread
+          read: readNotifications.includes(`auction-${auction.id}`)
         });
+      });
 
-        // Add payment confirmation notification if needed
-        if (order.status === 'Waiting for Confirmation') {
-          orderNotifications.push({
-            id: `order-payment-${order.id}`,
-            type: 'payment',
-            title: 'Konfirmasi Pembayaran Diperlukan',
-            message: `Pesanan #${order.id} menunggu konfirmasi pembayaran`,
-            date: order.date,
-            url: `/order-detail/${order.id}`,
-            read: false // Default to unread
-          });
-        }
+    // Order notifications
+    orders.forEach((order: Order) => {
+      // Add order status update notification
+      allNotifications.push({
+        id: `order-status-${order.id}`,
+        type: 'order',
+        title: `Status Pesanan: ${order.status}`,
+        message: `Pesanan #${order.id.substring(0, 8)} - ${order.status}`,
+        date: new Date(order.date),
+        url: `/order-detail/${order.id}`,
+        read: readNotifications.includes(`order-status-${order.id}`)
+      });
 
-        // Add delivery notification if shipped
-        if (order.status === 'Shipped') {
-          orderNotifications.push({
-            id: `order-shipped-${order.id}`,
-            type: 'shipping',
-            title: 'Pesanan Dikirim',
-            message: `Pesanan #${order.id} telah dikirim`,
-            date: order.date,
-            url: `/order-detail/${order.id}`,
-            read: false // Default to unread
-          });
-        }
+      // Add payment confirmation notification if needed
+      if (order.status === 'Waiting for Confirmation') {
+        allNotifications.push({
+          id: `order-payment-${order.id}`,
+          type: 'payment',
+          title: 'Konfirmasi Pembayaran Diperlukan',
+          message: `Pesanan #${order.id.substring(0, 8)} menunggu konfirmasi pembayaran`,
+          date: new Date(order.date),
+          url: `/order-detail/${order.id}`,
+          read: readNotifications.includes(`order-payment-${order.id}`)
+        });
+      }
 
-        // Add delivery notification if delivered
-        if (order.status === 'Delivered') {
-          orderNotifications.push({
-            id: `order-delivered-${order.id}`,
-            type: 'delivery',
-            title: 'Pesanan Diterima',
-            message: `Pesanan #${order.id} telah diterima`,
-            date: order.date,
-            url: `/order-detail/${order.id}`,
-            read: false // Default to unread
-          });
-        }
+      // Add delivery notification if shipped
+      if (order.status === 'Shipped') {
+        allNotifications.push({
+          id: `order-shipped-${order.id}`,
+          type: 'shipping',
+          title: 'Pesanan Dikirim',
+          message: `Pesanan #${order.id.substring(0, 8)} telah dikirim`,
+          date: new Date(order.date),
+          url: `/order-detail/${order.id}`,
+          read: readNotifications.includes(`order-shipped-${order.id}`)
+        });
+      }
 
-        // Add cancellation notification
-        if (order.status === 'Cancelled') {
-          orderNotifications.push({
-            id: `order-cancelled-${order.id}`,
-            type: 'cancellation',
-            title: 'Pesanan Dibatalkan',
-            message: `Pesanan #${order.id} telah dibatalkan`,
-            date: order.date,
-            url: `/order-detail/${order.id}`,
-            read: false // Default to unread
-          });
-        }
+      // Add delivery notification if delivered
+      if (order.status === 'Delivered') {
+        allNotifications.push({
+          id: `order-delivered-${order.id}`,
+          type: 'delivery',
+          title: 'Pesanan Diterima',
+          message: `Pesanan #${order.id.substring(0, 8)} telah diterima`,
+          date: new Date(order.date),
+          url: `/order-detail/${order.id}`,
+          read: readNotifications.includes(`order-delivered-${order.id}`)
+        });
+      }
 
-        // Add refund notification
-        if (order.status === 'Refund Required' || order.status === 'Refund Processing') {
-          orderNotifications.push({
-            id: `order-refund-${order.id}`,
-            type: 'refund',
-            title: 'Refund Diperlukan',
-            message: `Proses refund untuk pesanan #${order.id}`,
-            date: order.date,
-            url: `/order-detail/${order.id}`,
-            read: false // Default to unread
-          });
-        }
+      // Add cancellation notification
+      if (order.status === 'Cancelled') {
+        allNotifications.push({
+          id: `order-cancelled-${order.id}`,
+          type: 'cancellation',
+          title: 'Pesanan Dibatalkan',
+          message: `Pesanan #${order.id.substring(0, 8)} telah dibatalkan`,
+          date: new Date(order.date),
+          url: `/order-detail/${order.id}`,
+          read: readNotifications.includes(`order-cancelled-${order.id}`)
+        });
+      }
 
-        return orderNotifications;
-      })
-    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Sort by date, newest first
+      // Add refund notification
+      if (order.status === 'Refund Required' || order.status === 'Refund Processing') {
+        allNotifications.push({
+          id: `order-refund-${order.id}`,
+          type: 'refund',
+          title: 'Refund Diperlukan',
+          message: `Proses refund untuk pesanan #${order.id.substring(0, 8)}`,
+          date: new Date(order.date),
+          url: `/order-detail/${order.id}`,
+          read: readNotifications.includes(`order-refund-${order.id}`)
+        });
+      }
+    });
 
-    setNotifications(allNotifications);
+    // Sort by date, newest first
+    return allNotifications.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, []);
+
+  // Fetch notifications from API
+  const fetchNotifications = useCallback(async () => {
+    try {
+      // Fetch orders and auctions in parallel
+      const [ordersRes, auctionsRes] = await Promise.all([
+        fetch('/api/orders'),
+        fetch('/api/auctions')
+      ]);
+
+      let orders: Order[] = [];
+      let auctions: any[] = [];
+
+      if (ordersRes.ok) {
+        orders = await ordersRes.json();
+      }
+
+      if (auctionsRes.ok) {
+        auctions = await auctionsRes.json();
+      }
+
+      const notifs = generateNotifications(orders, auctions);
+      setNotifications(notifs);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      setNotifications([]);
+    } finally {
+      setIsLoadingNotifications(false);
+    }
+  }, [generateNotifications]);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchNotifications();
+
+    // Poll for updates every 30 seconds
+    const interval = setInterval(fetchNotifications, 30000);
+
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
+
+  // Listen for read status changes
+  useEffect(() => {
+    const handleReadStatusChange = () => {
+      // Re-apply read status from localStorage
+      const readNotifications = JSON.parse(localStorage.getItem('readNotifications') || '[]');
+      setNotifications(prev =>
+        prev.map(n => ({
+          ...n,
+          read: readNotifications.includes(n.id)
+        }))
+      );
+    };
+
+    window.addEventListener('notificationReadStatusChanged', handleReadStatusChange);
+    window.addEventListener('storage', handleReadStatusChange);
+
+    return () => {
+      window.removeEventListener('notificationReadStatusChanged', handleReadStatusChange);
+      window.removeEventListener('storage', handleReadStatusChange);
+    };
   }, []);
 
   const markNotificationAsRead = (notificationId: string) => {
@@ -174,12 +200,10 @@ export function Header() {
     if (!readNotifications.includes(notificationId)) {
       readNotifications.push(notificationId);
       localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
-
-      // Dispatch custom event to trigger notification update
       window.dispatchEvent(new Event('notificationReadStatusChanged'));
     }
 
-    // Update state to reflect the change
+    // Update state
     setNotifications(prev =>
       prev.map(notification =>
         notification.id === notificationId
@@ -189,161 +213,16 @@ export function Header() {
     );
   };
 
-  // Listen for custom events to update read status
-  useEffect(() => {
-    const handleReadStatusChange = () => {
-      // Reload notifications to reflect any changes in read status
-      // Load auction wins
-      const allAuctions = JSON.parse(localStorage.getItem('auctions') || '[]');
-      const now = new Date();
-
-      const userWins = allAuctions.filter((auction: any) =>
-        now >= new Date(auction.endDate) &&
-        auction.status === 'sold' // Assuming sold status means won
-      ).length;
-
-      setAuctionWinCount(userWins);
-
-      // Get all orders for notifications
-      const allOrders: Order[] = JSON.parse(localStorage.getItem('userOrders') || '[]');
-
-      // Get all orders, not just those with specific status
-      const allOrdersWithUpdates = allOrders; // All orders can generate notifications
-
-      setOrderUpdateCount(allOrdersWithUpdates.length);
-
-      // Load read notifications from localStorage
-      const readNotifications = JSON.parse(localStorage.getItem('readNotifications') || '[]');
-
-      // Consolidate all notifications
-      const allNotifications = [
-        // Auction wins
-        ...allAuctions
-          .filter((auction: any) => now >= new Date(auction.endDate) && auction.status === 'sold')
-          .map((auction: any) => ({
-            id: `auction-${auction.id}`,
-            type: 'auction',
-            title: 'Lelang Dimenangkan!',
-            message: `${auction.product?.name || 'Item Lelang'} - ${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(auction.currentBid || auction.minBid)}`,
-            date: new Date(auction.endDate),
-            url: `/checkout?auctionId=${auction.id}`,
-            read: readNotifications.includes(`auction-${auction.id}`) // Check if notification is already read
-          })),
-        // Order status updates
-        ...allOrdersWithUpdates.flatMap((order: Order) => {
-          const orderNotifications = [];
-
-          // Add order status update notification
-          orderNotifications.push({
-            id: `order-status-${order.id}`,
-            type: 'order',
-            title: `Status Pesanan: ${order.status}`,
-            message: `Pesanan #${order.id} - ${order.status}`,
-            date: order.date,
-            url: `/order-detail/${order.id}`,
-            read: readNotifications.includes(`order-status-${order.id}`) // Check if notification is already read
-          });
-
-          // Add payment confirmation notification if needed
-          if (order.status === 'Waiting for Confirmation') {
-            orderNotifications.push({
-              id: `order-payment-${order.id}`,
-              type: 'payment',
-              title: 'Konfirmasi Pembayaran Diperlukan',
-              message: `Pesanan #${order.id} menunggu konfirmasi pembayaran`,
-              date: order.date,
-              url: `/order-detail/${order.id}`,
-              read: readNotifications.includes(`order-payment-${order.id}`) // Check if notification is already read
-            });
-          }
-
-          // Add delivery notification if shipped
-          if (order.status === 'Shipped') {
-            orderNotifications.push({
-              id: `order-shipped-${order.id}`,
-              type: 'shipping',
-              title: 'Pesanan Dikirim',
-              message: `Pesanan #${order.id} telah dikirim`,
-              date: order.date,
-              url: `/order-detail/${order.id}`,
-              read: readNotifications.includes(`order-shipped-${order.id}`) // Check if notification is already read
-            });
-          }
-
-          // Add delivery notification if delivered
-          if (order.status === 'Delivered') {
-            orderNotifications.push({
-              id: `order-delivered-${order.id}`,
-              type: 'delivery',
-              title: 'Pesanan Diterima',
-              message: `Pesanan #${order.id} telah diterima`,
-              date: order.date,
-              url: `/order-detail/${order.id}`,
-              read: readNotifications.includes(`order-delivered-${order.id}`) // Check if notification is already read
-            });
-          }
-
-          // Add cancellation notification
-          if (order.status === 'Cancelled') {
-            orderNotifications.push({
-              id: `order-cancelled-${order.id}`,
-              type: 'cancellation',
-              title: 'Pesanan Dibatalkan',
-              message: `Pesanan #${order.id} telah dibatalkan`,
-              date: order.date,
-              url: `/order-detail/${order.id}`,
-              read: readNotifications.includes(`order-cancelled-${order.id}`) // Check if notification is already read
-            });
-          }
-
-          // Add refund notification
-          if (order.status === 'Refund Required' || order.status === 'Refund Processing') {
-            orderNotifications.push({
-              id: `order-refund-${order.id}`,
-              type: 'refund',
-              title: 'Refund Diperlukan',
-              message: `Proses refund untuk pesanan #${order.id}`,
-              date: order.date,
-              url: `/order-detail/${order.id}`,
-              read: readNotifications.includes(`order-refund-${order.id}`) // Check if notification is already read
-            });
-          }
-
-          return orderNotifications;
-        })
-      ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Sort by date, newest first
-
-      setNotifications(allNotifications);
-    };
-
-    // Listen to custom event for read status updates
-    window.addEventListener('notificationReadStatusChanged', handleReadStatusChange);
-
-    // Listen to storage changes from other tabs
-    window.addEventListener('storage', handleReadStatusChange);
-
-    // Cleanup listener on unmount
-    return () => {
-      window.removeEventListener('notificationReadStatusChanged', handleReadStatusChange);
-      window.removeEventListener('storage', handleReadStatusChange);
-    };
-  }, []);
-
   const markAllAsRead = () => {
-    // Save all notification IDs to localStorage
     const currentReadNotifications = JSON.parse(localStorage.getItem('readNotifications') || '[]');
     const allNotificationIds = notifications.map(n => n.id);
-    const allIds = Array.from(new Set([...currentReadNotifications, ...allNotificationIds])); // Merge and remove duplicates
+    const allIds = Array.from(new Set([...currentReadNotifications, ...allNotificationIds]));
     localStorage.setItem('readNotifications', JSON.stringify(allIds));
 
-    // Update state to reflect the change
     setNotifications(prev =>
-      prev.map(notification =>
-        ({ ...notification, read: true })
-      )
+      prev.map(notification => ({ ...notification, read: true }))
     );
 
-    // Dispatch custom event to trigger notification update
     window.dispatchEvent(new Event('notificationReadStatusChanged'));
   };
 
@@ -362,46 +241,53 @@ export function Header() {
           </h1>
         </Link>
         <div className="ml-auto flex items-center gap-4">
-            <CheckOrderDialog />
+          <ThemeSwitcher />
+          <CheckOrderDialog />
 
-            {/* Auction Win Notification Badge */}
-            <div className="relative">
-              <div className="dropdown dropdown-end">
-                <div tabIndex={0} role="button" className="btn btn-ghost btn-circle relative">
-                  <Bell className="h-5 w-5" />
-                  {notifications.filter(n => !n.read).length > 0 && (
-                    <span className="badge badge-xs badge-error absolute right-0 top-0 transform translate-x-1/2 -translate-y-1/2">
+          {/* Notification Badge */}
+          <div className="relative">
+            <div className="dropdown dropdown-end">
+              <div tabIndex={0} role="button" className="btn btn-ghost btn-circle relative">
+                <Bell className="h-5 w-5" />
+                {notifications.filter(n => !n.read).length > 0 && (
+                  <span className="badge badge-xs badge-error absolute right-0 top-0 transform translate-x-1/2 -translate-y-1/2">
+                    {notifications.filter(n => !n.read).length}
+                  </span>
+                )}
+              </div>
+              <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-64 max-h-96 overflow-y-auto">
+                <div className="flex justify-between items-center px-3 pt-2">
+                  <span className="font-semibold">Notifikasi</span>
+                  <div className="flex items-center gap-2">
+                    <div className="badge badge-primary badge-sm">
                       {notifications.filter(n => !n.read).length}
-                    </span>
-                  )}
-                </div>
-                <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-64 max-h-96 overflow-y-auto">
-                  <div className="flex justify-between items-center px-3 pt-2">
-                    <span className="font-semibold">Notifikasi</span>
-                    <div className="flex items-center gap-2">
-                      <div className="badge badge-primary badge-sm">
-                        {notifications.filter(n => !n.read).length}
-                      </div>
-                      <button
-                        className="text-xs text-base-content/70 hover:text-base-content/90"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          markAllAsRead();
-                        }}
-                      >
-                        Tandai semua
-                      </button>
                     </div>
+                    <button
+                      className="text-xs text-base-content/70 hover:text-base-content/90"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        markAllAsRead();
+                      }}
+                    >
+                      Tandai semua
+                    </button>
                   </div>
+                </div>
 
-                  <div className="divider my-0"></div>
-                  {notifications.filter(n => !n.read).length > 0 ? (
-                    <>
-                      <div className="max-h-48 overflow-y-auto">
+                <div className="divider my-0"></div>
+                {isLoadingNotifications ? (
+                  <li>
+                    <a className="p-3 text-center text-base-content/60">
+                      <span className="loading loading-spinner loading-sm"></span>
+                    </a>
+                  </li>
+                ) : notifications.filter(n => !n.read).length > 0 ? (
+                  <>
+                    <div className="max-h-48 overflow-y-auto">
                       {notifications.filter(n => !n.read).map((notification) => (
                         <li
                           key={notification.id}
-                          className="bg-base-200" // Only unread notifications are shown
+                          className="bg-base-200"
                         >
                           <div className="flex items-center gap-3 p-3">
                             <Link
@@ -410,15 +296,14 @@ export function Header() {
                               onClick={() => markNotificationAsRead(notification.id)}
                             >
                               <div className="flex items-center gap-3">
-                                <div className={`rounded-full p-2 ${
-                                  notification.type === 'auction' ? 'bg-success text-success-content' :
+                                <div className={`rounded-full p-2 ${notification.type === 'auction' ? 'bg-success text-success-content' :
                                   notification.type === 'delivery' ? 'bg-success text-success-content' :
-                                  notification.type === 'cancellation' ? 'bg-error text-error-content' :
-                                  notification.type === 'refund' ? 'bg-warning text-warning-content' :
-                                  notification.type === 'payment' ? 'bg-info text-info-content' :
-                                  notification.type === 'shipping' ? 'bg-primary text-primary-content' :
-                                  'bg-accent text-accent-content'
-                                }`}>
+                                    notification.type === 'cancellation' ? 'bg-error text-error-content' :
+                                      notification.type === 'refund' ? 'bg-warning text-warning-content' :
+                                        notification.type === 'payment' ? 'bg-info text-info-content' :
+                                          notification.type === 'shipping' ? 'bg-primary text-primary-content' :
+                                            'bg-accent text-accent-content'
+                                  }`}>
                                   {notification.type === 'auction' ? (
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -460,78 +345,74 @@ export function Header() {
                           </div>
                         </li>
                       ))}
-                      </div>
-                      <li className="px-3 pt-2">
-                        <Link href="/notification" className="btn btn-outline btn-sm w-full">
-                          Lihat Semua
-                        </Link>
-                      </li>
-                    </>
-                  ) : (
-                    <li>
-                      <a className="p-3 text-center text-base-content/60">
-                        Tidak ada notifikasi
-                      </a>
+                    </div>
+                    <li className="px-3 pt-2">
+                      <Link href="/notification" className="btn btn-outline btn-sm w-full">
+                        Lihat Semua
+                      </Link>
                     </li>
-                  )}
-                </ul>
-              </div>
-            </div>
-
-            <div className="relative">
-              <button
-                className="btn btn-ghost btn-circle relative"
-                onClick={toggleCart}
-                aria-label="Open shopping cart"
-              >
-                <ShoppingCart className="h-5 w-5" />
-                {totalItems > 0 && (
-                  <span className="badge badge-sm badge-error text-xs absolute right-0 top-0 transform translate-x-1/2 -translate-y-1/2">
-                    {totalItems}
-                  </span>
+                  </>
+                ) : (
+                  <li>
+                    <a className="p-3 text-center text-base-content/60">
+                      Tidak ada notifikasi
+                    </a>
+                  </li>
                 )}
-              </button>
+              </ul>
             </div>
+          </div>
 
-            {status === 'authenticated' ? (
+          <div className="relative">
+            <button
+              className="btn btn-ghost btn-circle relative"
+              onClick={toggleCart}
+              aria-label="Open shopping cart"
+            >
+              <ShoppingCart className="h-5 w-5" />
+              {totalItems > 0 && (
+                <span className="badge badge-sm badge-error text-xs absolute right-0 top-0 transform translate-x-1/2 -translate-y-1/2">
+                  {totalItems}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {status === 'authenticated' ? (
             <div className="dropdown dropdown-end">
               <div tabIndex={0} role="button" className="btn btn-ghost btn-circle avatar">
                 <div className="w-10 rounded-full">
                   {session?.user?.avatar ? (
                     <img alt="User Avatar" src={session.user.avatar} />
-                  ) : profile?.avatar ? (
-                    <img alt="User Avatar" src={profile.avatar} />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center rounded-full bg-base-300 text-base-content">
-                        <span>{session?.user?.name ? getInitials(session.user.name) : profile?.fullName ? getInitials(profile.fullName) : <User />}</span>
+                      <span>{session?.user?.name ? getInitials(session.user.name) : <User />}</span>
                     </div>
                   )}
                 </div>
               </div>
               <ul tabIndex={0} className="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
                 <li className="menu-title">
-                  <span className="font-semibold">{session?.user?.name || profile?.fullName || "Guest"}</span>
+                  <span className="font-semibold">{session?.user?.name || "Guest"}</span>
                 </li>
                 <li>
-                    <Link href="/profile">
-                        <User className="h-4 w-4" />
-                        Profil
-                    </Link>
+                  <Link href="/profile">
+                    <User className="h-4 w-4" />
+                    Profil
+                  </Link>
                 </li>
                 <div className="divider my-1"></div>
                 <li>
-                    <a
-                      onClick={() => {
-                        // Clear the profile from localStorage
-                        localStorage.removeItem('userProfile');
-                        // Sign out the user using next-auth
-                        signOut({ callbackUrl: '/' });
-                      }}
-                      className="cursor-pointer"
-                    >
-                        <LogOut className="h-4 w-4" />
-                        Keluar
-                    </a>
+                  <a
+                    onClick={() => {
+                      localStorage.removeItem('userProfile');
+                      signOut({ callbackUrl: '/' });
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Keluar
+                  </a>
                 </li>
               </ul>
             </div>

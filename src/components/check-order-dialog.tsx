@@ -11,12 +11,29 @@ export function CheckOrderDialog() {
   const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Load orders from localStorage when dialog opens
+  // Fetch orders from API when dialog opens
   useEffect(() => {
     if (isOpen) {
-      const storedOrders: Order[] = JSON.parse(localStorage.getItem('userOrders') || '[]');
-      setOrders(storedOrders);
+      const fetchOrders = async () => {
+        setIsLoading(true);
+        try {
+          const response = await fetch('/api/orders');
+          if (response.ok) {
+            const data = await response.json();
+            setOrders(data);
+          } else {
+            setOrders([]);
+          }
+        } catch (error) {
+          console.error('Error fetching orders:', error);
+          setOrders([]);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchOrders();
     }
   }, [isOpen]);
 
@@ -82,15 +99,19 @@ export function CheckOrderDialog() {
               </button>
             </div>
 
-            {/* Orders list or search input */}
-            {activeTab === 'active' && activeOrders.length > 0 ? (
+            {/* Loading state */}
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <span className="loading loading-spinner loading-md"></span>
+              </div>
+            ) : activeTab === 'active' && activeOrders.length > 0 ? (
               <div className="max-h-60 overflow-y-auto">
                 <ul className="menu bg-base-100 w-full">
                   {activeOrders.map(order => (
                     <li key={order.id}>
                       <a onClick={() => handleTrackOrder(order)}>
                         <div>
-                          <div className="font-bold">{order.id}</div>
+                          <div className="font-bold">{order.id.substring(0, 12)}...</div>
                           <div className="text-sm opacity-70">
                             {new Date(order.date).toLocaleDateString('id-ID')} •
                             <span className="ml-1 badge badge-ghost">{order.status}</span>
@@ -111,7 +132,7 @@ export function CheckOrderDialog() {
                     <li key={order.id}>
                       <a onClick={() => handleTrackOrder(order)}>
                         <div>
-                          <div className="font-bold">{order.id}</div>
+                          <div className="font-bold">{order.id.substring(0, 12)}...</div>
                           <div className="text-sm opacity-70">
                             {new Date(order.date).toLocaleDateString('id-ID')} •
                             <span className="ml-1 badge badge-ghost">{order.status}</span>
@@ -148,14 +169,15 @@ export function CheckOrderDialog() {
               >
                 Batal
               </button>
-              {activeTab === 'active' || activeTab === 'completed' ? null : (
+              {(activeTab === 'active' && activeOrders.length === 0) ||
+                (activeTab === 'completed' && completedOrders.length === 0) ? (
                 <button
                   className="btn btn-primary"
                   onClick={() => handleTrackOrder()}
                 >
                   Lacak Pesanan
                 </button>
-              )}
+              ) : null}
             </div>
           </div>
         </div>

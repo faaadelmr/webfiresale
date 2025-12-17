@@ -6,11 +6,12 @@ import { Decimal } from '@prisma/client/runtime/library';
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const auction = await prisma.auction.findUnique({
-            where: { id: params.id },
+            where: { id },
             include: {
                 product: true,
                 bids: {
@@ -83,9 +84,10 @@ export async function GET(
 
 export async function PATCH(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const session = await getServerSession(authOptions);
 
         // Check if user is admin or superadmin
@@ -109,7 +111,7 @@ export async function PATCH(
         if (data.currentBid !== undefined) updateData.currentBid = new Decimal(data.currentBid);
 
         const auction = await prisma.auction.update({
-            where: { id: params.id },
+            where: { id },
             data: updateData,
         });
 
@@ -144,9 +146,10 @@ export async function PATCH(
 
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const session = await getServerSession(authOptions);
 
         // Check if user is admin or superadmin
@@ -158,7 +161,7 @@ export async function DELETE(
         }
 
         await prisma.auction.delete({
-            where: { id: params.id },
+            where: { id },
         });
 
         return new Response(JSON.stringify({

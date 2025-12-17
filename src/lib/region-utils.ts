@@ -46,8 +46,8 @@ export function enrichAddressWithNames(address: {
     street: string;
     rtRwBlock: string;
     postalCode: string;
-    label: string;
-    notes: string;
+    label: string | null;
+    notes: string | null;
     phone: string;
     isDefault?: boolean;
     userId?: string;

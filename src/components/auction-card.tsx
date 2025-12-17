@@ -10,15 +10,15 @@ export function AuctionCard({ product }: { product: any }) {
     <div className="card bg-base-100 shadow-xl overflow-hidden">
       <figure className="relative h-48 w-full">
         <Image
-          src={product.image || '/placeholder.svg'}
-          alt={product.name}
+          src={product.product?.image || '/placeholder.svg'}
+          alt={product.product?.name || 'Auction Item'}
           fill
           style={{ objectFit: "cover" }}
           className="transition-transform duration-300 group-hover:scale-105"
         />
       </figure>
       <div className="card-body p-4">
-        <h3 className="font-semibold text-lg truncate">{product.name}</h3>
+        <h3 className="font-semibold text-lg truncate">{product.product?.name || 'Unknown Item'}</h3>
         <p className="text-sm text-base-content/70">Tawaran saat ini: {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(product.currentBid || product.minBid)}</p>
         <CountdownTimer saleStartDate={product.startDate} saleEndDate={product.endDate} />
         <div className="card-actions justify-end mt-4">

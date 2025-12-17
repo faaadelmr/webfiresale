@@ -39,11 +39,11 @@ export function ProductCard({ product }: ProductCardProps) {
   const progress = limitedQuantity ? (soldQuantity / limitedQuantity) * 100 : 0;
   const quantityAvailable = limitedQuantity - soldQuantity;
   const isSoldOut = limitedQuantity ? quantityAvailable <= 0 : false;
-  
+
   const discountPercentage = Math.round(((product.originalPrice - product.flashSalePrice) / product.originalPrice) * 100);
 
   return (
-    <motion.div 
+    <motion.div
       className="card bg-base-100 shadow-xl overflow-hidden flex flex-col h-full"
       whileHover={{ y: -5, transition: { duration: 0.2 } }}
       whileTap={{ scale: 0.98 }}
@@ -63,10 +63,10 @@ export function ProductCard({ product }: ProductCardProps) {
       </figure>
       <div className="card-body p-4 flex flex-col flex-1">
         <div className='flex-1'>
-            <h3 className="card-title text-lg">{product.name}</h3>
-            <p className="mt-1 text-sm text-base-content/70 h-10 overflow-hidden text-ellipsis">
-                {product.description}
-            </p>
+          <h3 className="card-title text-lg">{product.name}</h3>
+          <p className="mt-1 text-sm text-base-content/70 h-10 overflow-hidden text-ellipsis">
+            {product.description}
+          </p>
         </div>
         <div className="mt-4">
           <div className="space-y-2">
@@ -84,11 +84,16 @@ export function ProductCard({ product }: ProductCardProps) {
               {formatPrice(product.originalPrice)}
             </span>
             {discountPercentage > 0 && (
-                <div className="badge badge-outline border-primary text-primary">
-                    {discountPercentage}% OFF
-                </div>
+              <div className="badge badge-outline border-primary text-primary">
+                {discountPercentage}% OFF
+              </div>
             )}
           </div>
+          {product.maxOrderQuantity && (
+            <div className="text-xs text-warning mt-1">
+              Maks. {product.maxOrderQuantity} pcs per transaksi
+            </div>
+          )}
           <CountdownTimer saleStartDate={product.startDate} saleEndDate={product.endDate} />
           <motion.button
             className={`btn mt-4 w-full ${isSoldOut || !isSaleActive ? 'btn-disabled' : 'btn-primary'}`}

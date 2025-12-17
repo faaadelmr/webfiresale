@@ -69,33 +69,33 @@ export const saveFlashSalesToStorage = (flashSales: FlashSale[]) => saveToStorag
 
 // --- Combined FlashSale with Product details ---
 export function getActiveFlashSaleProducts(): CartProduct[] {
-    const products = getProductsFromStorage();
-    const flashSales = getFlashSalesFromStorage();
-    const now = new Date();
+  const products = getProductsFromStorage();
+  const flashSales = getFlashSalesFromStorage();
+  const now = new Date();
 
-    const activeFlashSaleProducts: CartProduct[] = [];
+  const activeFlashSaleProducts: CartProduct[] = [];
 
-    flashSales.forEach(fs => {
-        const product = products.find(p => p.id === fs.productId);
-        if (product) {
-            const saleStartDate = new Date(fs.startDate);
-            const saleEndDate = new Date(fs.endDate);
-            if (now >= saleStartDate && now < saleEndDate) {
-                activeFlashSaleProducts.push({
-                    ...product,
-                    flashSaleId: fs.id,
-                    flashSalePrice: fs.flashSalePrice,
-                    maxOrderQuantity: fs.maxOrderQuantity,
-                    limitedQuantity: fs.limitedQuantity,
-                    sold: fs.sold,
-                    startDate: fs.startDate,
-                    endDate: fs.endDate,
-                });
-            }
-        }
-    });
+  flashSales.forEach(fs => {
+    const product = products.find(p => p.id === fs.productId);
+    if (product) {
+      const saleStartDate = new Date(fs.startDate);
+      const saleEndDate = new Date(fs.endDate);
+      if (now >= saleStartDate && now < saleEndDate) {
+        activeFlashSaleProducts.push({
+          ...product,
+          flashSaleId: fs.id,
+          flashSalePrice: fs.flashSalePrice,
+          maxOrderQuantity: fs.maxOrderQuantity,
+          limitedQuantity: fs.limitedQuantity,
+          sold: fs.sold,
+          startDate: fs.startDate,
+          endDate: fs.endDate,
+        });
+      }
+    }
+  });
 
-    return activeFlashSaleProducts;
+  return activeFlashSaleProducts;
 }
 
 // --- Address Functions ---
@@ -149,47 +149,55 @@ export function saveGeneralSettingsToStorage(settings: any) {
 }
 
 export function isProductAvailableForCart(
-  productId: string, 
+  productId: string,
   requestedQuantity: number = 1,
   cartItems: CartItem[] = [],
   isUpdate: boolean = false
-): { 
-  isAvailable: boolean; 
+): {
+  isAvailable: boolean;
   message: string;
   maxAvailable?: number;
 } {
   const now = new Date();
-  const allFlashSaleProducts = getActiveFlashSaleProducts();
-  
-  const product = allFlashSaleProducts.find(p => p.id === productId);
 
-  // This function is only for flash sale products now. Regular products are assumed to have infinite stock.
+  // Find the product in current cart items
+  const itemInCart = cartItems.find(item => item.product.id === productId);
+
+  // If product is not in cart and we're doing an update, it's available
+  if (!itemInCart && isUpdate) {
+    return { isAvailable: true, message: "Produk tersedia" };
+  }
+
+  // Get product info from cart item (for flash sale validations)
+  const product = itemInCart?.product;
+
+  // This function is only for flash sale products. Regular products are assumed to have infinite stock.
   if (!product || !product.flashSaleId) {
     return { isAvailable: true, message: "Produk reguler, selalu tersedia." };
   }
 
-  const start = new Date(product.startDate!);
-  const end = new Date(product.endDate!);
-  
-  if (now < start) {
+  const start = product.startDate ? new Date(product.startDate) : null;
+  const end = product.endDate ? new Date(product.endDate) : null;
+
+  if (start && now < start) {
     return { isAvailable: false, message: "Flash sale untuk produk ini belum dimulai." };
   }
-  if (now >= end) {
+  if (end && now >= end) {
     return { isAvailable: false, message: "Flash sale untuk produk ini sudah berakhir." };
   }
 
-  const availableStock = product.limitedQuantity! - product.sold!;
+  const availableStock = (product.limitedQuantity || 0) - (product.sold || 0);
 
   if (availableStock <= 0) {
     return { isAvailable: false, message: "Stok produk ini sudah habis." };
   }
 
+  // For update, requestedQuantity is the new total, so we don't add existing cart quantity
   let quantityInCart = 0;
-  const itemInCart = cartItems.find(item => item.product.id === productId);
-  if (itemInCart) {
-    quantityInCart = isUpdate ? 0 : itemInCart.quantity;
+  if (!isUpdate && itemInCart) {
+    quantityInCart = itemInCart.quantity;
   }
-  
+
   const totalRequested = requestedQuantity + quantityInCart;
 
   if (product.maxOrderQuantity && totalRequested > product.maxOrderQuantity) {
@@ -199,7 +207,7 @@ export function isProductAvailableForCart(
       maxAvailable: product.maxOrderQuantity
     };
   }
-  
+
   if (totalRequested > availableStock) {
     return {
       isAvailable: false,
@@ -207,7 +215,7 @@ export function isProductAvailableForCart(
       maxAvailable: availableStock
     };
   }
-  
+
   return {
     isAvailable: true,
     message: "Produk tersedia"
@@ -298,23 +306,23 @@ export function getActiveAuctionProducts(): any[] {
   const activeAuctions: any[] = [];
 
   auctions.forEach(auction => {
-      const product = products.find(p => p.id === auction.productId);
-      if (product) {
-          const auctionStartDate = new Date(auction.startDate);
-          const auctionEndDate = new Date(auction.endDate);
-          if (now >= auctionStartDate && now < auctionEndDate) {
-              // Get the highest bid for this auction
-              const bids = getBidsForAuction(auction.id);
-              const highestBid = bids.length > 0 ? bids[0].amount : auction.minBid;
+    const product = products.find(p => p.id === auction.productId);
+    if (product) {
+      const auctionStartDate = new Date(auction.startDate);
+      const auctionEndDate = new Date(auction.endDate);
+      if (now >= auctionStartDate && now < auctionEndDate) {
+        // Get the highest bid for this auction
+        const bids = getBidsForAuction(auction.id);
+        const highestBid = bids.length > 0 ? bids[0].amount : auction.minBid;
 
-              activeAuctions.push({
-                  ...product,
-                  ...auction,
-                  currentBid: highestBid,
-                  bidCount: bids.length,
-              });
-          }
+        activeAuctions.push({
+          ...product,
+          ...auction,
+          currentBid: highestBid,
+          bidCount: bids.length,
+        });
       }
+    }
   });
 
   return activeAuctions;
@@ -369,7 +377,7 @@ export function calculateShippingCostFromCart(
 
   // Calculate based on 1kg increments, rounding up
   const kgUnits = Math.ceil(totalWeightInKg);
-  
+
   // Ensure at least 1kg is charged if there's weight
   const chargeableWeight = kgUnits === 0 && totalWeight > 0 ? 1 : kgUnits;
 
@@ -379,7 +387,7 @@ export function calculateShippingCostFromCart(
 
 // Async function to calculate shipping cost from database
 export async function calculateShippingCostFromDatabase(
-  products: {id: string, quantity: number}[],
+  products: { id: string, quantity: number }[],
   shippingCityId: string
 ) {
   // Import prisma here to avoid circular dependencies

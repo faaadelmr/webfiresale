@@ -6,12 +6,13 @@ import { Decimal } from '@prisma/client/runtime/library';
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const bids = await prisma.bid.findMany({
             where: {
-                auctionId: params.id,
+                auctionId: id,
             },
             include: {
                 user: {
@@ -51,9 +52,10 @@ export async function GET(
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const session = await getServerSession(authOptions);
 
         if (!session || !session.user) {
@@ -75,7 +77,7 @@ export async function POST(
 
         // Check if auction exists and is active
         const auction = await prisma.auction.findUnique({
-            where: { id: params.id },
+            where: { id },
         });
 
         if (!auction) {
@@ -108,7 +110,7 @@ export async function POST(
             // Create the bid
             const bid = await tx.bid.create({
                 data: {
-                    auctionId: params.id,
+                    auctionId: id,
                     userId: session.user.id,
                     amount: new Decimal(data.amount),
                 },
@@ -124,7 +126,7 @@ export async function POST(
 
             // Update auction with new highest bid
             const updatedAuction = await tx.auction.update({
-                where: { id: params.id },
+                where: { id },
                 data: {
                     currentBid: new Decimal(data.amount),
                     bidCount: {

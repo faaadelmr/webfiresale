@@ -9,7 +9,7 @@ import type { Order, RefundDetails, OrderStatus, AddressDetails } from "@/lib/ty
 import { Eye, UploadCloud, CheckCircle, Printer, Search, FileText, Package, PackageOpen, Truck, CheckCheck, X, AlertTriangle, Coins, Home, Building } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { mockOrders } from "@/lib/mock-data";
+
 import { motion, AnimatePresence } from "framer-motion";
 
 
@@ -119,74 +119,12 @@ function OrderTable({
       const newStatus = needsRefund ? 'Refund Processing' as const : 'Cancelled' as const;
 
       const updatedOrder = { ...selectedOrder, status: newStatus, refundDetails };
-      const orderIndex = orders.findIndex(o => o.id === selectedOrder.id);
 
-      if (orderIndex !== -1) {
-        // Update the order in the list with the new status
-        const updatedOrders = [...orders];
-        updatedOrders[orderIndex] = updatedOrder;
+      // Call the cancel handler which will update via API
+      onCancelOrder(selectedOrder.id, refundDetails);
 
-        // Save to localStorage
-        let allOrders = JSON.parse(localStorage.getItem('userOrders') || '[]') as Order[];
-        const orderIndexInStorage = allOrders.findIndex(o => o.id === selectedOrder.id);
-
-        if (orderIndexInStorage !== -1) {
-          allOrders[orderIndexInStorage] = updatedOrder;
-        } else {
-          allOrders.push(updatedOrder);
-        }
-
-        // Apply the same aggressive storage cleanup as in other files
-        // Clean up old orders to prevent storage overflow
-        const sixMonthsAgo = new Date();
-        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-
-        const recentOrders = allOrders.filter(order => {
-          const orderDate = new Date(order.date);
-          return orderDate > sixMonthsAgo;
-        });
-
-        // If still too many orders, keep only the most recent ones
-        const ordersToKeep = recentOrders.length > 100
-          ? recentOrders.slice(-100) // Keep 100 most recent
-          : recentOrders;
-
-        try {
-          localStorage.setItem('userOrders', JSON.stringify(ordersToKeep));
-        } catch (error) {
-          if (error instanceof DOMException && (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
-            // If storage is still full after cleanup, try more aggressive cleanup
-            // First, try with only 25 most recent orders
-            const reducedOrders = ordersToKeep.slice(-25);
-            try {
-              localStorage.setItem('userOrders', JSON.stringify(reducedOrders));
-            } catch (secondError) {
-              // If still failing, try with only 10 most recent orders
-              const furtherReducedOrders = ordersToKeep.slice(-10);
-              try {
-                localStorage.setItem('userOrders', JSON.stringify(furtherReducedOrders));
-              } catch (thirdError) {
-                // If still failing, remove order by order starting from oldest until it fits
-                for (let i = 0; i < ordersToKeep.length; i++) {
-                  const smallSet = ordersToKeep.slice(i);
-                  try {
-                    localStorage.setItem('userOrders', JSON.stringify(smallSet));
-                    break; // Successfully saved, exit the loop
-                  } catch (finalError) {
-                    if (i === ordersToKeep.length - 1) {
-                      // This is the last iteration and it still failed
-                      // Try with just the new order
-                      localStorage.setItem('userOrders', JSON.stringify([updatedOrder]));
-                    }
-                  }
-                }
-              }
-            }
-          } else {
-            throw error; // Re-throw if it's a different error
-          }
-        }
-      }
+      // Also update state through the provided function
+      updateOrderInStateAndStorage(updatedOrder);
 
       setCancelDialogOpen(false);
       setCancelReason("");
@@ -1039,17 +977,11 @@ export default function OrdersPage() {
           setOrders(sortedOrders);
         } else {
           console.error('Failed to fetch orders:', response.status);
-          // Fallback to localStorage if API fails
-          const userOrders = JSON.parse(localStorage.getItem('userOrders') || '[]') as Order[];
-          const allOrders = [...mockOrders, ...userOrders].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-          setOrders(allOrders);
+          setOrders([]);
         }
       } catch (error) {
         console.error('Error fetching orders:', error);
-        // Fallback to localStorage on error
-        const userOrders = JSON.parse(localStorage.getItem('userOrders') || '[]') as Order[];
-        const allOrders = [...mockOrders, ...userOrders].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        setOrders(allOrders);
+        setOrders([]);
       }
     };
 
@@ -1069,69 +1001,8 @@ export default function OrdersPage() {
 
 
   const updateOrderInStateAndStorage = (updatedOrder: Order) => {
-    // Update state
+    // Update state only - API handles persistence
     setOrders(prevOrders => prevOrders.map(o => o.id === updatedOrder.id ? updatedOrder : o));
-
-    // Update localStorage
-    let allOrders = JSON.parse(localStorage.getItem('userOrders') || '[]') as Order[];
-    const orderIndex = allOrders.findIndex(o => o.id === updatedOrder.id);
-
-    if (orderIndex !== -1) {
-      allOrders[orderIndex] = updatedOrder;
-    } else {
-      allOrders.push(updatedOrder);
-    }
-
-    // Clean up old orders to prevent storage overflow
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-
-    const recentOrders = allOrders.filter(order => {
-      const orderDate = new Date(order.date);
-      return orderDate > sixMonthsAgo;
-    });
-
-    // If still too many orders, keep only the most recent ones
-    const ordersToKeep = recentOrders.length > 100
-      ? recentOrders.slice(-100) // Keep 100 most recent
-      : recentOrders;
-
-    // Try to save to localStorage with error handling
-    try {
-      localStorage.setItem('userOrders', JSON.stringify(ordersToKeep));
-    } catch (error) {
-      if (error instanceof DOMException && (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
-        // If storage is still full after cleanup, try more aggressive cleanup
-        // First, try with only 25 most recent orders
-        const reducedOrders = ordersToKeep.slice(-25);
-        try {
-          localStorage.setItem('userOrders', JSON.stringify(reducedOrders));
-        } catch (secondError) {
-          // If still failing, try with only 10 most recent orders
-          const furtherReducedOrders = ordersToKeep.slice(-10);
-          try {
-            localStorage.setItem('userOrders', JSON.stringify(furtherReducedOrders));
-          } catch (thirdError) {
-            // If still failing, remove order by order starting from oldest until it fits
-            for (let i = 0; i < ordersToKeep.length; i++) {
-              const smallSet = ordersToKeep.slice(i);
-              try {
-                localStorage.setItem('userOrders', JSON.stringify(smallSet));
-                break; // Successfully saved, exit the loop
-              } catch (finalError) {
-                if (i === ordersToKeep.length - 1) {
-                  // This is the last iteration and it still failed
-                  // Try with just the new order
-                  localStorage.setItem('userOrders', JSON.stringify([updatedOrder]));
-                }
-              }
-            }
-          }
-        }
-      } else {
-        throw error; // Re-throw if it's a different error
-      }
-    }
   }
 
   const handleUpdateOrderStatus = async (orderId: string, newStatus: Order['status']) => {

@@ -11,7 +11,7 @@ import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Order, AddressDetails, ShippingOption, GeneralSettings, UserProfile } from "@/lib/types";
-import { mockShippingOptions } from "@/lib/mock-data";
+
 import { useToast } from "@/hooks/use-toast";
 import { Suspense } from "react";
 
@@ -46,18 +46,16 @@ function CheckoutContent() {
                         id: option.id,
                         cityId: option.cityId,  // Use cityId instead of city
                         cost: Number(option.cost) // Ensure cost is a number
-                    })) || mockShippingOptions;
+                    })) || [];
                     setShippingOptions(formattedShippingOptions);
                 } else {
-                    // Fallback to localStorage if API fails
-                    const storedOptions = JSON.parse(localStorage.getItem("shippingOptions") || "null");
-                    setShippingOptions(storedOptions || mockShippingOptions);
+                    // No fallback - use empty array if API fails
+                    setShippingOptions([]);
                 }
             } catch (error) {
                 console.error('Error fetching shipping options:', error);
-                // Fallback to localStorage on error
-                const storedOptions = JSON.parse(localStorage.getItem("shippingOptions") || "null");
-                setShippingOptions(storedOptions || mockShippingOptions);
+                // No fallback - use empty array on error
+                setShippingOptions([]);
             }
 
             // Fetch general settings from API

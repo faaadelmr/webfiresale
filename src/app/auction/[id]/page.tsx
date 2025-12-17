@@ -1,93 +1,139 @@
 "use client";
-import { useState, useEffect } from "react";
-import { getAuctionById, getBidsForAuction, addBidToAuction, getAuctionsFromStorage, saveAuctionsToStorage } from "@/lib/utils";
+import { useState, useEffect, use } from "react";
 import Link from "next/link";
+import { useToast } from "@/hooks/use-toast";
 
-export default function AuctionDetailPage({ params }: { params: { id: string } }) {
-  const [auction, setAuction] = useState<any>(null);
+interface Bid {
+  user: string;
+  amount: number;
+  date: Date;
+  bidType?: 'bid' | 'buyNow';
+}
+
+interface AuctionProduct {
+  id: string;
+  name: string;
+  description: string;
+  image: string;
+  originalPrice: number;
+}
+
+interface Auction {
+  id: string;
+  productId: string;
+  product?: AuctionProduct;
+  minBid: number;
+  maxBid?: number;
+  currentBid?: number;
+  bidCount: number;
+  startDate: Date;
+  endDate: Date;
+  status: string;
+  bids?: Bid[];
+}
+
+export default function AuctionDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const [auction, setAuction] = useState<Auction | null>(null);
   const [bidAmount, setBidAmount] = useState("");
   const [timeLeft, setTimeLeft] = useState("");
   const [currentBid, setCurrentBid] = useState(0);
-  const [bids, setBids] = useState<{ user: string; amount: number; date: Date; bidType?: 'bid' | 'buyNow' }[]>([]);
+  const [bids, setBids] = useState<Bid[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [auctionEnded, setAuctionEnded] = useState(false);
-  const [winner, setWinner] = useState<{user: string, amount: number} | null>(null);
+  const [winner, setWinner] = useState<{ user: string, amount: number } | null>(null);
   const [isHighestBidder, setIsHighestBidder] = useState(false);
-  const [bidHistory, setBidHistory] = useState<{ user: string; amount: number; date: Date; type: string }[]>([]);
+  const { toast } = useToast();
+
+  // Fetch auction from API
+  const fetchAuction = async () => {
+    try {
+      const response = await fetch(`/api/auctions/${id}`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          setAuction(null);
+          return;
+        }
+        throw new Error('Failed to fetch auction');
+      }
+
+      const data = await response.json();
+
+      const auctionData: Auction = {
+        id: data.id,
+        productId: data.productId,
+        product: data.product ? {
+          id: data.product.id,
+          name: data.product.name,
+          description: data.product.description,
+          image: data.product.image,
+          originalPrice: data.product.originalPrice,
+        } : undefined,
+        minBid: data.minBid,
+        maxBid: data.maxBid ?? undefined,
+        currentBid: data.currentBid ?? undefined,
+        bidCount: data.bidCount,
+        startDate: new Date(data.startDate),
+        endDate: new Date(data.endDate),
+        status: data.status,
+        bids: data.bids?.map((b: any) => ({
+          user: b.user,
+          amount: b.amount,
+          date: new Date(b.date),
+          bidType: 'bid' as const,
+        })),
+      };
+
+      const now = new Date();
+      const endDate = new Date(auctionData.endDate);
+      const hasEnded = now >= endDate || auctionData.status === 'ended' || auctionData.status === 'sold';
+
+      setAuction(auctionData);
+      setAuctionEnded(hasEnded);
+
+      // Sort bids by amount (highest first)
+      const sortedBids = [...(auctionData.bids || [])].sort((a, b) => b.amount - a.amount);
+      setBids(sortedBids);
+
+      // Set current bid
+      const highestBid = sortedBids.length > 0 ? sortedBids[0].amount : auctionData.minBid;
+      setCurrentBid(auctionData.currentBid || highestBid);
+
+      // Determine winner
+      if (hasEnded && sortedBids.length > 0) {
+        const highestBidder = sortedBids[0];
+        setWinner(highestBidder);
+        if (highestBidder.user === "Anda") {
+          setIsHighestBidder(true);
+        }
+      } else if (sortedBids.length > 0 && sortedBids[0]?.user === "Anda") {
+        setIsHighestBidder(true);
+        setWinner(sortedBids[0]);
+      }
+    } catch (error) {
+      console.error('Error fetching auction:', error);
+      toast({ title: "Gagal memuat data lelang", variant: "destructive" });
+    }
+  };
 
   useEffect(() => {
-    // Load auction data and bids
-    const loadAuctionData = () => {
-      const auctionData = getAuctionById(params.id);
-      if (auctionData) {
-        const now = new Date();
-        const endDate = new Date(auctionData.endDate);
-        const hasEnded = now >= endDate;
-
-        setAuction(auctionData);
-        setAuctionEnded(hasEnded);
-
-        // Use bids from the auction data
-        const auctionBids = getBidsForAuction(params.id);
-        const sortedBids = [...auctionBids].sort((a, b) => b.amount - a.amount);
-
-        // Set the current bid to the highest bid or min bid if no bids
-        const currentBidValue = sortedBids.length > 0 ? sortedBids[0].amount : auctionData.minBid;
-        setCurrentBid(currentBidValue);
-
-        // Set up bid history for detailed tracking
-        const history = [...auctionBids.map(bid => ({
-          ...bid,
-          type: 'bid'
-        }))];
-
-        // If there was a buy-now action, add it to history
-        if (auctionData.maxBid && auctionData.status === 'sold') {
-          history.push({
-            user: 'Buy Now',
-            amount: auctionData.maxBid,
-            date: new Date(auctionData.endDate),
-            type: 'buyNow'
-          });
-        }
-
-        setBidHistory(history);
-
-        // Determine winner if auction has ended
-        if (hasEnded && sortedBids.length > 0) {
-          const highestBid = sortedBids[0];
-          setWinner(highestBid);
-          if (highestBid.user === "Anda") {
-            setIsHighestBidder(true);
-          }
-        } else if (sortedBids.length > 0 && sortedBids[0]?.user === "Anda") {
-          // If auction is active and user is highest bidder
-          setIsHighestBidder(true);
-          setWinner(sortedBids[0]);
-        }
-
-        setBids(sortedBids);
-      }
-    };
-
-    // Load initially with a slight delay
-    setTimeout(() => {
-      loadAuctionData();
+    const loadData = async () => {
+      setIsLoading(true);
+      await fetchAuction();
       setIsLoading(false);
-    }, 500);
-
-    // Set up an interval to poll for new bids every 5 seconds while auction is active
-    const pollForUpdates = setInterval(() => {
-      if (!auctionEnded) {
-        loadAuctionData();
-      }
-    }, 5000); // Poll every 5 seconds
-
-    // Clean up the interval when component unmounts
-    return () => {
-      clearInterval(pollForUpdates);
     };
-  }, [params.id, auctionEnded]);
+
+    loadData();
+
+    // Poll for updates every 5 seconds while auction is active
+    const pollInterval = setInterval(() => {
+      if (!auctionEnded) {
+        fetchAuction();
+      }
+    }, 5000);
+
+    return () => clearInterval(pollInterval);
+  }, [id, auctionEnded]);
 
   useEffect(() => {
     if (!auction || auctionEnded) return;
@@ -100,16 +146,6 @@ export default function AuctionDetailPage({ params }: { params: { id: string } }
       if (diff <= 0) {
         setTimeLeft("Waktu lelang telah berakhir");
         setAuctionEnded(true);
-
-        // Add auction end event to bid history
-        const auctionEndEvent = {
-          user: "Sistem",
-          amount: currentBid,
-          date: new Date(),
-          type: 'auctionEnd'
-        };
-        setBidHistory([...bidHistory, auctionEndEvent]);
-
         clearInterval(interval);
         return;
       }
@@ -122,65 +158,68 @@ export default function AuctionDetailPage({ params }: { params: { id: string } }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [auction, auctionEnded, currentBid, bidHistory]);
+  }, [auction, auctionEnded]);
 
-  const handleBid = () => {
+  const handleBid = async () => {
     if (!auction || auctionEnded) return;
 
     const newBid = parseInt(bidAmount);
     if (isNaN(newBid) || newBid <= currentBid) {
-      alert(`Tawaran Anda harus lebih tinggi dari tawaran saat ini (${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(currentBid)}).`);
+      toast({
+        title: "Tawaran tidak valid",
+        description: `Tawaran Anda harus lebih tinggi dari ${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(currentBid)}.`,
+        variant: "destructive"
+      });
       return;
     }
 
-    // Add the bid to the backend/storage
-    addBidToAuction(auction.id, "Anda", newBid);
+    try {
+      const response = await fetch(`/api/auctions/${auction.id}/bids`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: newBid }),
+      });
 
-    // Add to bid history
-    const newBidHistoryItem = {
-      user: "Anda",
-      amount: newBid,
-      date: new Date(),
-      type: 'bid'
-    };
-    setBidHistory([...bidHistory, newBidHistoryItem]);
-
-    // Update component state to reflect the new bid
-    setCurrentBid(newBid);
-
-    // Check if user is now the highest bidder
-    setIsHighestBidder(true);
-    setWinner({ user: "Anda", amount: newBid });
-
-    setBidAmount("");
+      if (response.ok) {
+        toast({ title: "Tawaran berhasil ditempatkan!" });
+        setCurrentBid(newBid);
+        setIsHighestBidder(true);
+        setWinner({ user: "Anda", amount: newBid });
+        setBidAmount("");
+        await fetchAuction(); // Refresh data
+      } else {
+        const error = await response.json();
+        toast({ title: "Gagal menempatkan tawaran", description: error.message, variant: "destructive" });
+      }
+    } catch (error) {
+      console.error('Error placing bid:', error);
+      toast({ title: "Error menempatkan tawaran", variant: "destructive" });
+    }
   };
 
-  const handleBuyNow = () => {
-    if (auction && auction.maxBid) {
-      // Add buy-now event to bid history
-      const buyNowHistoryItem = {
-        user: "Anda",
-        amount: auction.maxBid,
-        date: new Date(),
-        type: 'buyNow'
-      };
-      setBidHistory([...bidHistory, buyNowHistoryItem]);
+  const handleBuyNow = async () => {
+    if (!auction || !auction.maxBid) return;
 
-      // Update auction status to sold
-      const auctions = getAuctionsFromStorage();
-      const updatedAuctions = auctions.map(a =>
-        a.id === auction.id ? { ...a, status: 'sold' } : a
-      );
-      saveAuctionsToStorage(updatedAuctions);
+    try {
+      const response = await fetch(`/api/auctions/${auction.id}/bids`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: auction.maxBid, isBuyNow: true }),
+      });
 
-      // Mark the auction as ended and update winner
-      setAuction({ ...auction, status: 'sold' });
-      setAuctionEnded(true);
-      setWinner({ user: "Anda", amount: auction.maxBid });
-      setIsHighestBidder(true);
-
-      // Mock buy now
-      alert(`Produk berhasil dibeli dengan harga ${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(auction.maxBid)}`)
+      if (response.ok) {
+        toast({ title: `Produk berhasil dibeli dengan harga ${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(auction.maxBid)}` });
+        setAuctionEnded(true);
+        setWinner({ user: "Anda", amount: auction.maxBid });
+        setIsHighestBidder(true);
+        await fetchAuction();
+      } else {
+        const error = await response.json();
+        toast({ title: "Gagal membeli produk", description: error.message, variant: "destructive" });
+      }
+    } catch (error) {
+      console.error('Error buying now:', error);
+      toast({ title: "Error membeli produk", variant: "destructive" });
     }
   };
 
@@ -203,10 +242,6 @@ export default function AuctionDetailPage({ params }: { params: { id: string } }
             <div className="skeleton h-12"></div>
           </div>
         </div>
-        <div className="mt-12">
-          <div className="skeleton h-12 w-1/3 mx-auto"></div>
-          <div className="skeleton h-64 mt-4"></div>
-        </div>
       </div>
     );
   }
@@ -217,6 +252,7 @@ export default function AuctionDetailPage({ params }: { params: { id: string } }
         <div className="text-center py-12">
           <h2 className="text-2xl font-bold">Lelang tidak ditemukan</h2>
           <p className="text-base-content/70 mt-2">Lelang yang Anda cari mungkin sudah berakhir atau tidak ada.</p>
+          <Link href="/" className="btn btn-primary mt-4">Kembali ke Beranda</Link>
         </div>
       </div>
     );

@@ -22,7 +22,7 @@ export function CartSidebar() {
         exit={{ opacity: 0 }}
         onClick={toggleCart}
       ></motion.div>
-      <motion.div 
+      <motion.div
         className="absolute right-0 top-0 h-full w-full max-w-md bg-base-100 shadow-xl overflow-hidden flex flex-col z-50"
         initial={{ x: '100%' }}
         animate={{ x: 0 }}
@@ -44,8 +44,8 @@ export function CartSidebar() {
             {cartItems.length > 0 ? (
               <div className="space-y-4">
                 {cartItems.map((item) => (
-                  <motion.div 
-                    key={item.product.id} 
+                  <motion.div
+                    key={item.product.id}
                     className="flex items-start gap-4 p-3 bg-base-200 rounded-lg"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -65,32 +65,45 @@ export function CartSidebar() {
                       <div className="text-sm text-base-content/70 flex flex-wrap items-center gap-2">
                         <span>{formatPrice(item.product.flashSalePrice)}</span>
                         {item.product.flashSaleId && item.product.originalPrice > item.product.flashSalePrice && (
-                            <span className="line-through">{formatPrice(item.product.originalPrice)}</span>
+                          <span className="line-through">{formatPrice(item.product.originalPrice)}</span>
                         )}
                         <span className="badge badge-ghost badge-sm">{item.product.weight || 0}g</span>
                       </div>
 
-                      <div className="mt-2 flex items-center gap-2">
-                        <button
-                          className="btn btn-sm btn-outline"
-                          onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
-                        >
-                          <Minus className="h-4 w-4" />
-                        </button>
-                        <input
-                          type="number"
-                          value={item.quantity}
-                          onChange={(e) => updateQuantity(item.product.id, parseInt(e.target.value) || 1)}
-                          className="input input-bordered input-sm w-16 text-center"
-                          min="1"
-                          max={item.product.flashSaleId ? item.product.limitedQuantity : undefined}
-                        />
-                        <button
-                          className="btn btn-sm btn-outline"
-                          onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </button>
+                      <div className="mt-2 flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <button
+                            className="btn btn-sm btn-outline"
+                            onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                          >
+                            <Minus className="h-4 w-4" />
+                          </button>
+                          <input
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) => updateQuantity(item.product.id, parseInt(e.target.value) || 1)}
+                            className="input input-bordered input-sm w-16 text-center"
+                            min="1"
+                            max={item.product.flashSaleId
+                              ? Math.min(
+                                item.product.maxOrderQuantity || Infinity,
+                                (item.product.limitedQuantity || 0) - (item.product.sold || 0)
+                              )
+                              : undefined}
+                          />
+                          <button
+                            className="btn btn-sm btn-outline"
+                            onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                            disabled={item.product.flashSaleId && item.product.maxOrderQuantity ? item.quantity >= item.product.maxOrderQuantity : false}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </button>
+                        </div>
+                        {item.product.flashSaleId && item.product.maxOrderQuantity && (
+                          <span className="text-xs text-base-content/60">
+                            Maks. {item.product.maxOrderQuantity} pcs
+                          </span>
+                        )}
                       </div>
                     </div>
                     <button
@@ -103,7 +116,7 @@ export function CartSidebar() {
                 ))}
               </div>
             ) : (
-              <motion.div 
+              <motion.div
                 className="flex flex-1 flex-col items-center justify-center text-center h-full"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -116,17 +129,17 @@ export function CartSidebar() {
             )}
           </AnimatePresence>
         </div>
-        
+
         {cartItems.length > 0 && (
           <div className="border-t p-4 space-y-4">
-              <div className="flex justify-between text-lg font-bold">
-                  <span>Subtotal</span>
-                  <span>{formatPrice(cartTotal)}</span>
-              </div>
-              <Link href="/checkout" className="btn btn-primary w-full" onClick={toggleCart}>
-                  Lanjutkan ke Checkout
-                  <ArrowRight className="h-4 w-4" />
-              </Link>
+            <div className="flex justify-between text-lg font-bold">
+              <span>Subtotal</span>
+              <span>{formatPrice(cartTotal)}</span>
+            </div>
+            <Link href="/checkout" className="btn btn-primary w-full" onClick={toggleCart}>
+              Lanjutkan ke Checkout
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
         )}
       </motion.div>

@@ -6,11 +6,12 @@ import { Decimal } from '@prisma/client/runtime/library';
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const flashSale = await prisma.flashSale.findUnique({
-            where: { id: params.id },
+            where: { id },
             include: {
                 product: true,
             },
@@ -60,9 +61,10 @@ export async function GET(
 
 export async function PATCH(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const session = await getServerSession(authOptions);
 
         // Check if user is admin or superadmin
@@ -86,7 +88,7 @@ export async function PATCH(
         if (data.maxOrderQuantity !== undefined) updateData.maxOrderQuantity = data.maxOrderQuantity;
 
         const flashSale = await prisma.flashSale.update({
-            where: { id: params.id },
+            where: { id },
             data: updateData,
         });
 
@@ -121,9 +123,10 @@ export async function PATCH(
 
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const session = await getServerSession(authOptions);
 
         // Check if user is admin or superadmin
@@ -135,7 +138,7 @@ export async function DELETE(
         }
 
         await prisma.flashSale.delete({
-            where: { id: params.id },
+            where: { id },
         });
 
         return new Response(JSON.stringify({
