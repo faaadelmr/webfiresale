@@ -3,6 +3,9 @@ import path from 'path';
 import fs from 'fs/promises';
 import { NextRequest } from 'next/server';
 
+// Allowed image extensions
+const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+
 // Ensure uploads directory exists
 const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'avatars');
 
@@ -11,8 +14,14 @@ export async function saveAvatar(file: File): Promise<string | null> {
     // Create directory if it doesn't exist
     await fs.mkdir(UPLOAD_DIR, { recursive: true });
 
+    // Validate file extension
+    const fileExtension = path.extname(file.name).toLowerCase();
+    if (!ALLOWED_EXTENSIONS.includes(fileExtension)) {
+      console.error('Invalid file extension:', fileExtension);
+      return null;
+    }
+
     // Generate unique filename
-    const fileExtension = path.extname(file.name);
     const fileName = `${uuidv4()}${fileExtension}`;
     const filePath = path.join(UPLOAD_DIR, fileName);
 

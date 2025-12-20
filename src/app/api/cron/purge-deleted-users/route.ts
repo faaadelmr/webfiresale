@@ -7,19 +7,19 @@ import { purgeOldDeletedUsers } from '@/lib/admin-helpers';
 // This endpoint is designed to be called by a cron job or scheduled task
 export async function PATCH(request: NextRequest) {
   try {
-    // For security, we should verify this is a legitimate cron job request
-    // In production, you might want to check for a secret header or IP restriction
+    // Verify this is a legitimate cron job request with secret token
     const authHeader = request.headers.get('authorization');
     if (!authHeader || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      // In a real application, you might want to use Vercel's cron authentication
-      // Or implement other security mechanisms
-      console.log('Cron job verification skipped in development');
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
-    
+
     // Purge old deleted users
     const purgedCount = await purgeOldDeletedUsers();
-    
-    return new Response(JSON.stringify({ 
+
+    return new Response(JSON.stringify({
       message: `${purgedCount} users purged successfully`,
       purgedCount
     }), {
@@ -30,8 +30,8 @@ export async function PATCH(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error in purge deleted users cron job:', error);
-    return new Response(JSON.stringify({ 
-      error: error instanceof Error ? error.message : 'Failed to purge deleted users' 
+    return new Response(JSON.stringify({
+      error: error instanceof Error ? error.message : 'Failed to purge deleted users'
     }), {
       status: 500,
       headers: {

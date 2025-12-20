@@ -125,8 +125,12 @@ export async function GET(request: NextRequest) {
         const flashSaleId = searchParams.get('flashSaleId');
         const action = searchParams.get('action');
 
-        // Process expired reservations (cleanup)
+        // Process expired reservations (cleanup) - requires auth
         if (action === 'cleanup') {
+            const authHeader = request.headers.get('authorization');
+            if (!authHeader || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+                return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            }
             const count = await processExpiredReservations();
             return NextResponse.json({
                 success: true,

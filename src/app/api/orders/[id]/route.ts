@@ -271,6 +271,26 @@ export async function PATCH(
 
     // If updating status, payment proof, or shipping details
     if (status || paymentProof !== undefined || shippingCode !== undefined || shippingName !== undefined) {
+      // Validate status transitions for customers (non-admin users can only make certain transitions)
+      if (status) {
+        const allowedCustomerTransitions: Record<string, string[]> = {
+          'Pending': ['Waiting for Confirmation', 'Cancelled'],
+          'Waiting for Confirmation': ['Cancelled'],
+          'Shipped': ['Delivered'],
+          'Delivered': ['Refund Processing'],
+        };
+
+        const allowedNextStatuses = allowedCustomerTransitions[order.status] || [];
+        if (!allowedNextStatuses.includes(status)) {
+          return new Response(JSON.stringify({
+            message: `Cannot change order status from '${order.status}' to '${status}'`
+          }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+      }
+
       const updateData: any = {};
       if (status) updateData.status = status;
       if (paymentProof !== undefined) updateData.paymentProof = paymentProof;

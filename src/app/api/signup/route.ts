@@ -15,6 +15,15 @@ export async function POST(request: Request) {
       )
     }
 
+    // Validate password strength
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
+    if (!passwordRegex.test(password)) {
+      return NextResponse.json(
+        { error: 'Password must be at least 8 characters with uppercase, lowercase, and number' },
+        { status: 400 }
+      )
+    }
+
     // Check if user already exists (excluding soft-deleted users)
     const existingUser = await prisma.user.findFirst({
       where: {

@@ -1,17 +1,14 @@
 // src/app/admin/users/page.tsx
+import { requireAccess } from '@/lib/server-auth';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { redirect } from 'next/navigation';
-import DashboardNavbar from '@/components/ui/DashboardNavbar';
 import UserListClient from './UserListClient';
 
 export default async function UserListPage() {
-  const session = await getServerSession(authOptions);
+  // Require admin-users access (superadmin only)
+  await requireAccess('admin-users');
 
-  // Check if user is authenticated and is a superadmin
-  if (!session?.user || session.user.role !== 'superadmin') {
-    redirect('/unauthorized');
-  }
+  const session = await getServerSession(authOptions);
 
   return (
     <div className="min-h-screen bg-base-200">

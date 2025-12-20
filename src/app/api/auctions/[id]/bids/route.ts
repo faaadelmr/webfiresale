@@ -30,7 +30,7 @@ export async function GET(
 
         const transformedBids = bids.map((bid: typeof bids[number]) => ({
             auctionId: bid.auctionId,
-            user: bid.user.name || bid.user.email || 'Anonymous',
+            user: bid.user.name || 'Anonymous',
             amount: Number(bid.amount),
             date: bid.createdAt,
         }));
@@ -95,6 +95,14 @@ export async function POST(
             });
         }
 
+        // Check if auction has ended by time (race condition prevention)
+        if (new Date() >= auction.endDate) {
+            return new Response(JSON.stringify({ message: 'Auction has ended' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
         // Check if bid is higher than current bid
         const currentHighestBid = auction.currentBid ? Number(auction.currentBid) : Number(auction.minBid);
         if (data.amount <= currentHighestBid) {
@@ -148,7 +156,7 @@ export async function POST(
             message: result.isBuyNow ? 'Purchase successful' : 'Bid placed successfully',
             bid: {
                 auctionId: result.bid.auctionId,
-                user: result.bid.user.name || result.bid.user.email || 'Anonymous',
+                user: result.bid.user.name || 'Anonymous',
                 amount: Number(result.bid.amount),
                 date: result.bid.createdAt,
             },

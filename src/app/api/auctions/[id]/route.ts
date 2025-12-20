@@ -60,7 +60,7 @@ export async function GET(
             status: auction.status,
             bids: auction.bids.map(bid => ({
                 auctionId: bid.auctionId,
-                user: bid.user.name || bid.user.email || 'Anonymous',
+                user: bid.user.name || 'Anonymous',
                 amount: Number(bid.amount),
                 date: bid.createdAt,
             })),

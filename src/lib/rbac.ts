@@ -4,7 +4,7 @@
 // Define the ACL mapping: roles and their accessible resources
 const ACL_BASE = {
   superadmin: ["*"], // Superadmin has access to everything
-  admin: ["profile", "admin"], // Admin can access profile and admin
+  admin: ["profile", "admin", "admin-products", "admin-orders", "admin-auction", "admin-flashsale", "admin-shipping"], // Admin can access most admin features except users and settings
   customer: ["profile"], // Customer can only access profile
 };
 
@@ -13,15 +13,23 @@ const ACL_BASE = {
 // Admin and customer roles need explicit permissions for sub-routes
 const ACL_EXTENDED: Record<string, Record<string, string[]>> = {
   admin: {
-    'admin-users': ['read', 'update'], // Admins have access to user management with specific permissions
+    'admin-users': [], // Admins CANNOT access user management (superadmin only)
+    'admin-settings': [], // Admins CANNOT access settings (superadmin only)
     'admin-products': ['read', 'create', 'update', 'delete'],
-    'admin-orders': ['read', 'update']
+    'admin-orders': ['read', 'update'],
+    'admin-auction': ['read', 'create', 'update', 'delete'],
+    'admin-flashsale': ['read', 'create', 'update', 'delete'],
+    'admin-shipping': ['read', 'create', 'update', 'delete']
   },
   customer: {
     'admin': [],
     'admin-users': [],
+    'admin-settings': [],
     'admin-products': [],
-    'admin-orders': []
+    'admin-orders': [],
+    'admin-auction': [],
+    'admin-flashsale': [],
+    'admin-shipping': []
   }
 };
 

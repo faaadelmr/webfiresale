@@ -3,6 +3,12 @@ import { BackgroundJobManager } from '@/lib/background-jobs';
 
 export async function GET(request: NextRequest) {
   try {
+    // Verify this is a legitimate cron job request
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const result = await BackgroundJobManager.processJobs();
 
     return Response.json({
@@ -15,7 +21,7 @@ export async function GET(request: NextRequest) {
     return Response.json({
       success: false,
       message: 'Error processing background jobs',
-      error: (error as Error).message
+      error: process.env.NODE_ENV === 'production' ? 'An error occurred' : (error as Error).message
     }, { status: 500 });
   }
 }
