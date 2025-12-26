@@ -1,9 +1,10 @@
-import type {Metadata} from 'next';
+import type { Metadata } from 'next';
 import './globals.css';
 import ClientLayout from './ClientLayout';
+import { APP_NAME } from '@/lib/app-config';
 
 export const metadata: Metadata = {
-  title: 'FireSale',
+  title: APP_NAME,
   description: 'Rebut barang yang kamu inginkan dengan cara lebih mudah dan effisien.',
 };
 

@@ -1,9 +1,10 @@
 import type { Order } from './types';
+import { APP_NAME } from "@/lib/app-config";
 
 export async function printShippingLabel(order: Order) {
     // Fetch business settings for sender information
     let businessInfo = {
-        name: 'FireSale Indonesia',
+        name: APP_NAME,
         address: 'Alamat belum diatur',
         city: '',
         phone: '',
@@ -18,7 +19,7 @@ export async function printShippingLabel(order: Order) {
             if (settings.businessAddress) {
                 const addr = settings.businessAddress;
                 businessInfo = {
-                    name: addr.fullName || 'FireSale Indonesia',
+                    name: addr.fullName || APP_NAME,
                     address: `${addr.street}${addr.rtRwBlock ? ', ' + addr.rtRwBlock : ''}`,
                     city: `${addr.village || ''}, ${addr.district || ''}, ${addr.city || ''}, ${addr.province || ''} ${addr.postalCode || ''}`.trim(),
                     phone: addr.phone || '',

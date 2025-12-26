@@ -1,6 +1,6 @@
-
 "use client"
 
+import { APP_NAME } from "@/lib/app-config"
 import { Flame, LogOut, ShoppingCart, User, Bell } from "lucide-react"
 import { useCart } from "@/hooks/use-cart"
 import { CheckOrderDialog } from "./check-order-dialog"
@@ -237,7 +237,7 @@ export function Header() {
         <Link href="/" className="flex items-center gap-2">
           <Flame className="h-8 w-8 text-primary" />
           <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
-            FireSale
+            {APP_NAME}
           </h1>
         </Link>
         <div className="ml-auto flex items-center gap-4">

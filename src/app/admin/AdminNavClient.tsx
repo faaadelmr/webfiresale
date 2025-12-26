@@ -1,5 +1,6 @@
 "use client";
 
+import { APP_NAME } from "@/lib/app-config";
 import { useState, Dispatch, SetStateAction } from "react";
 import { Flame, LogOut, Package, Truck, Zap, Settings, Menu, ShoppingBasket } from "lucide-react";
 import Link from "next/link";
@@ -31,7 +32,7 @@ export default function AdminNavClient({ mobile, setSidebarOpen }: NavProps) {
     <>
       <div className="flex items-center gap-2 text-lg font-semibold p-4 border-b">
         <Flame className="h-6 w-6 text-primary" />
-        <span>FireSale Admin</span>
+        <span>{APP_NAME} Admin</span>
       </div>
       <nav className="flex flex-col gap-2 p-4">
         {navLinks.map(({ href, icon: Icon, label }) => (

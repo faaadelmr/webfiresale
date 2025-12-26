@@ -12,6 +12,8 @@ import Link from "next/link";
 
 import { motion, AnimatePresence } from "framer-motion";
 
+import { APP_NAME } from "@/lib/app-config";
+
 
 function OrderTable({
   orders,
@@ -217,7 +219,7 @@ function OrderTable({
 
   const handlePrintShippingLabel = async (order: Order) => {
     // Fetch business settings
-    let businessInfo = { name: 'FireSale Indonesia', address: 'Alamat belum diatur', city: '', phone: '', email: '', logoUrl: '' };
+    let businessInfo = { name: APP_NAME, address: 'Alamat belum diatur', city: '', phone: '', email: '', logoUrl: '' };
     try {
       const res = await fetch('/api/settings');
       if (res.ok) {
@@ -225,7 +227,7 @@ function OrderTable({
         if (s.businessAddress) {
           const a = s.businessAddress;
           businessInfo = {
-            name: a.fullName || 'FireSale Indonesia',
+            name: a.fullName || APP_NAME,
             address: `${a.street}${a.rtRwBlock ? ', ' + a.rtRwBlock : ''}`,
             city: `${a.village || ''}, ${a.district || ''}, ${a.city || ''}, ${a.province || ''} ${a.postalCode || ''}`.trim(),
             phone: a.phone || '',
