@@ -93,7 +93,7 @@ export async function addItemToCart(userId: string, productId: string, quantity:
         await tx.cartItem.update({
           where: { id: existingCartItem.id },
           data: {
-            quantity: existingCartItem.quantity + quantity,
+            quantity: { increment: quantity },
             price: new Decimal(price),
           },
         });
@@ -206,7 +206,7 @@ export async function clearUserCart(userId: string) {
 export async function calculateCartTotal(userId: string): Promise<Decimal> {
   try {
     const cart = await getUserCart(userId);
-    
+
     if (!cart || !cart.items || cart.items.length === 0) {
       return new Decimal(0);
     }
@@ -228,7 +228,7 @@ export async function calculateCartTotal(userId: string): Promise<Decimal> {
 export async function getCartItemsCount(userId: string): Promise<number> {
   try {
     const cart = await getUserCart(userId);
-    
+
     if (!cart || !cart.items || cart.items.length === 0) {
       return 0;
     }
