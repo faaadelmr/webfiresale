@@ -7,12 +7,14 @@ const themeIcons: Record<string, React.ReactNode> = {
     light: <Sun className="w-4 h-4" />,
     dark: <Moon className="w-4 h-4" />,
     cupcake: <Palette className="w-4 h-4" />,
+    cyberpunk: <Palette className="w-4 h-4 text-secondary" />,
 };
 
 const themeLabels: Record<string, string> = {
     light: 'Light',
     dark: 'Dark',
     cupcake: 'Cupcake',
+    cyberpunk: 'Cyberpunk',
 };
 
 export function ThemeSwitcher() {

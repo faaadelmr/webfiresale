@@ -11,6 +11,18 @@
       "description": "Assorted dimsum in a steamer.",
       "imageUrl": "https://picsum.photos/seed/dimsum/600/400",
       "imageHint": "dimsum food"
+    },
+    {
+      "id": "hot-item-1",
+      "description": "Nike Air Max Limited Edition",
+      "imageUrl": "https://picsum.photos/seed/nike/600/800",
+      "imageHint": "nike shoe"
+    },
+    {
+      "id": "hot-item-2",
+      "description": "Tshirt Crocodile Flashsale",
+      "imageUrl": "https://picsum.photos/seed/tshirt/600/800",
+      "imageHint": "tshirt"
     }
   ]
 }
