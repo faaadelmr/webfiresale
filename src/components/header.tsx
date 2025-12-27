@@ -1,9 +1,8 @@
 "use client"
 
 import { APP_NAME } from "@/lib/app-config"
-import { Flame, LogOut, ShoppingBag, User, Bell } from "lucide-react"
-import { useCart } from "@/hooks/use-cart"
-import { CheckOrderDialog } from "./check-order-dialog"
+import { Flame, LogOut, User, Bell, ShoppingBag, Search } from "lucide-react"
+import { CartDropdown } from "./cart-dropdown"
 import { ThemeSwitcher } from "./ThemeSwitcher"
 import Link from "next/link"
 import { useState, useEffect, useCallback } from "react"
@@ -31,7 +30,6 @@ const navLinks = [
 ];
 
 export function Header() {
-  const { toggleCart, totalItems } = useCart()
   const { data: session, status } = useSession()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(true)
@@ -301,7 +299,6 @@ export function Header() {
         {/* Right Actions */}
         <div className="flex items-center gap-2 md:gap-4">
           <ThemeSwitcher />
-          <CheckOrderDialog />
 
           {/* Notifications */}
           <div className="relative">
@@ -400,18 +397,8 @@ export function Header() {
             </div>
           </div>
 
-          {/* Cart */}
-          <button
-            onClick={toggleCart}
-            className="relative p-2 rounded-full hover:bg-base-content/10 transition-colors cursor-pointer group"
-          >
-            <ShoppingBag className="h-5 w-5 group-hover:scale-110 transition-transform" />
-            {totalItems > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-error text-error-content text-[10px] flex items-center justify-center rounded-full border-2 border-base-100 px-1 font-bold shadow-sm">
-                {totalItems}
-              </span>
-            )}
-          </button>
+          {/* Cart Dropdown */}
+          <CartDropdown />
 
           {/* User Profile */}
           {status === 'authenticated' ? (

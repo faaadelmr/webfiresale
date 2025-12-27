@@ -2,7 +2,12 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 
-type Theme = 'light' | 'dark' | 'cupcake' | 'cyberpunk';
+type Theme =
+    | 'light' | 'dark' | 'cupcake' | 'bumblebee' | 'emerald' | 'corporate'
+    | 'synthwave' | 'retro' | 'cyberpunk' | 'valentine' | 'halloween' | 'garden'
+    | 'forest' | 'aqua' | 'lofi' | 'pastel' | 'fantasy' | 'wireframe'
+    | 'black' | 'luxury' | 'dracula' | 'cmyk' | 'autumn' | 'business'
+    | 'acid' | 'lemonade' | 'night' | 'coffee' | 'winter' | 'dim' | 'nord' | 'sunset';
 
 interface ThemeContextType {
     theme: Theme;
@@ -13,7 +18,13 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 const THEME_STORAGE_KEY = 'webfiresale-theme';
-const AVAILABLE_THEMES: Theme[] = ['light', 'dark', 'cupcake', 'cyberpunk'];
+const AVAILABLE_THEMES: Theme[] = [
+    'light', 'dark', 'cupcake', 'bumblebee', 'emerald', 'corporate',
+    'synthwave', 'retro', 'cyberpunk', 'valentine', 'halloween', 'garden',
+    'forest', 'aqua', 'lofi', 'pastel', 'fantasy', 'wireframe',
+    'black', 'luxury', 'dracula', 'cmyk', 'autumn', 'business',
+    'acid', 'lemonade', 'night', 'coffee', 'winter', 'dim', 'nord', 'sunset'
+];
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
     const [theme, setThemeState] = useState<Theme>('light');

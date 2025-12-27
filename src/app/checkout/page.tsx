@@ -154,8 +154,13 @@ function CheckoutContent() {
                                 }
                             }
                         } else {
-                            const errorData = await response.json();
-                            console.error('Reservation failed:', errorData);
+                            // Better error handling - check if response has content
+                            try {
+                                const errorData = await response.json();
+                                console.error('Reservation failed:', errorData.error || errorData.message || 'Unknown error');
+                            } catch {
+                                console.error('Reservation failed with status:', response.status);
+                            }
                         }
                     } catch (error) {
                         console.error('Error creating flash sale reservation:', error);

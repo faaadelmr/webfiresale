@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import prisma from '@/lib/prisma';
 import {
     createFlashSaleReservation,
     createAuctionReservation,
@@ -13,11 +14,36 @@ import {
 export async function POST(request: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+        // Debug logging
+        console.log('Reservation API - Session:', session ? 'exists' : 'null');
+        console.log('Reservation API - User:', JSON.stringify(session?.user));
+
+        // Check if user is authenticated - support both id and email
+        let userId = session?.user?.id;
+
+        // Fallback: if no user.id, try to get user from database by email
+        if (!userId && session?.user?.email) {
+            try {
+                const user = await prisma.user.findUnique({
+                    where: { email: session.user.email }
+                });
+                if (user) {
+                    userId = user.id;
+                    console.log('Reservation API - Found user by email, id:', userId);
+                }
+            } catch (dbError) {
+                console.error('Reservation API - Database lookup error:', dbError);
+            }
+        }
+
+        if (!userId) {
+            console.error('Reservation API - Unauthorized: No user ID found in session');
+            return NextResponse.json({ error: 'Unauthorized - Please login first' }, { status: 401 });
         }
 
         const data = await request.json();
+        console.log('Reservation API - Request data:', JSON.stringify(data));
         const { type, flashSaleId, auctionId, quantity } = data;
 
         if (type === 'flashsale') {
@@ -28,11 +54,15 @@ export async function POST(request: NextRequest) {
                 );
             }
 
+            console.log('Reservation API - Creating flash sale reservation for:', { userId, flashSaleId, quantity });
+
             const result = await createFlashSaleReservation(
-                session.user.id,
+                userId,
                 flashSaleId,
                 quantity
             );
+
+            console.log('Reservation API - Result:', JSON.stringify(result));
 
             if (!result.success) {
                 return NextResponse.json({ error: result.message }, { status: 400 });
@@ -54,7 +84,7 @@ export async function POST(request: NextRequest) {
                 );
             }
 
-            const result = await createAuctionReservation(session.user.id, auctionId);
+            const result = await createAuctionReservation(userId, auctionId);
 
             if (!result.success) {
                 return NextResponse.json({ error: result.message }, { status: 400 });
