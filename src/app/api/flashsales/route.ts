@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        // Check if product exists
+        // Check if product exists and has available stock
         const product = await prisma.product.findUnique({
             where: { id: data.productId },
         });
@@ -162,32 +162,60 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        // Create flash sale
-        const flashSale = await prisma.flashSale.create({
-            data: {
-                productId: data.productId,
-                flashSalePrice: new Decimal(data.flashSalePrice),
-                startDate: new Date(data.startDate),
-                endDate: new Date(data.endDate),
-                limitedQuantity: data.limitedQuantity,
-                sold: 0,
-                status: 'active',
-                maxOrderQuantity: data.maxOrderQuantity || null,
-            },
+        // Flash sale takes limitedQuantity items from regular stock
+        const flashSaleQuantity = data.limitedQuantity;
+
+        if (product.quantityAvailable < flashSaleQuantity) {
+            return new Response(JSON.stringify({
+                message: 'Insufficient stock',
+                detail: `Product only has ${product.quantityAvailable} items available, but flash sale requires ${flashSaleQuantity} items.`
+            }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        // Use transaction to create flash sale and decrease product stock atomically
+        const result = await prisma.$transaction(async (tx) => {
+            // Decrease product stock
+            await tx.product.update({
+                where: { id: data.productId },
+                data: {
+                    quantityAvailable: {
+                        decrement: flashSaleQuantity
+                    }
+                }
+            });
+
+            // Create flash sale
+            const flashSale = await tx.flashSale.create({
+                data: {
+                    productId: data.productId,
+                    flashSalePrice: new Decimal(data.flashSalePrice),
+                    startDate: new Date(data.startDate),
+                    endDate: new Date(data.endDate),
+                    limitedQuantity: data.limitedQuantity,
+                    sold: 0,
+                    status: 'active',
+                    maxOrderQuantity: data.maxOrderQuantity || null,
+                },
+            });
+
+            return flashSale;
         });
 
         return new Response(JSON.stringify({
             message: 'Flash sale created successfully',
             flashSale: {
-                id: flashSale.id,
-                productId: flashSale.productId,
-                flashSalePrice: Number(flashSale.flashSalePrice),
-                startDate: flashSale.startDate,
-                endDate: flashSale.endDate,
-                limitedQuantity: flashSale.limitedQuantity,
-                sold: flashSale.sold,
-                status: flashSale.status,
-                maxOrderQuantity: flashSale.maxOrderQuantity,
+                id: result.id,
+                productId: result.productId,
+                flashSalePrice: Number(result.flashSalePrice),
+                startDate: result.startDate,
+                endDate: result.endDate,
+                limitedQuantity: result.limitedQuantity,
+                sold: result.sold,
+                status: result.status,
+                maxOrderQuantity: result.maxOrderQuantity,
             }
         }), {
             status: 201,

@@ -73,13 +73,14 @@ if (authSettings.providers.instagram) {
 export const authOptions = {
   providers,
   callbacks: {
-    async jwt({ token, user, account }: { token: any; user: any; account: any }) {
+    async jwt({ token, user, account, profile }: { token: any; user: any; account: any; profile?: any }) {
       // Initial sign-in or user creation
       if (user) {
         token.id = user.id;
         token.name = user.name;
         token.email = user.email;
-        token.avatar = user.avatar;
+        // Use avatar from database, or image from OAuth, or profile.picture from Google
+        token.image = user.avatar || user.image || profile?.picture || profile?.image;
         token.provider = user.provider || (account ? account.provider : 'credentials');
 
         // For new users (not yet in database), we pass role from validateUser/findOrCreateOAuthUser
@@ -104,7 +105,7 @@ export const authOptions = {
             token.id = dbUser.id;
             token.name = dbUser.name || dbUser.email.split('@')[0]; // Use email prefix as name if not set
             token.email = dbUser.email;
-            token.avatar = dbUser.avatar;
+            token.image = dbUser.avatar; // Use avatar from database
             token.role = dbUser.role;
             token.provider = dbUser.provider;
           }
@@ -127,7 +128,7 @@ export const authOptions = {
         session.user.id = token.id as string;
         session.user.name = token.name;
         session.user.email = token.email;
-        session.user.avatar = token.avatar;
+        session.user.image = token.image; // Use image instead of avatar for consistency with NextAuth
         session.user.provider = token.provider;
         session.user.role = token.role;
       }

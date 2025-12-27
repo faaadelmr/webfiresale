@@ -15,7 +15,7 @@ import {
     type CarouselApi,
 } from "@/components/ui/carousel";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { UserProfile } from "@/types";
+import { UserProfile } from "@/lib/types";
 import { getProfileFromStorage, cn } from "@/lib/utils";
 
 // Auction type matching API response

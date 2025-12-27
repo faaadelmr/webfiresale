@@ -383,7 +383,7 @@ export default function ProfilePage() {
                             name: data.name,
                             email: data.email,
                             phone: data.profile.phone || '',
-                            avatar: data.profile.avatar || session?.user?.avatar || '',
+                            avatar: data.profile.avatar || session?.user?.image || '',
                             dateOfBirth: data.profile.dateOfBirth || null,
                             gender: data.profile.gender || ''
                         });
@@ -503,7 +503,7 @@ export default function ProfilePage() {
                             <div className="flex items-center gap-6">
                                 <div className="avatar">
                                     <div className="w-24 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
-                                        <img src={profile.avatar || "https://picsum.photos/seed/profile-avatar/200/200"} alt="Avatar" />
+                                        <img src={profile.avatar || session?.user?.image || "https://picsum.photos/seed/profile-avatar/200/200"} alt="Avatar" />
                                     </div>
                                 </div>
                                 {isEditingProfile ? (

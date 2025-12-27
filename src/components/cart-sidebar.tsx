@@ -43,9 +43,9 @@ export function CartSidebar() {
           <AnimatePresence>
             {cartItems.length > 0 ? (
               <div className="space-y-4">
-                {cartItems.map((item) => (
+                {cartItems.map((item, index) => (
                   <motion.div
-                    key={item.product.id}
+                    key={`${item.product.id}-${item.product.flashSaleId || 'regular'}-${index}`}
                     className="flex items-start gap-4 p-3 bg-base-200 rounded-lg"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}

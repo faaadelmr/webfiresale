@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        // Check if product exists
+        // Check if product exists and has available stock
         const product = await prisma.product.findUnique({
             where: { id: data.productId },
         });
@@ -126,32 +126,60 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        // Create auction
-        const auction = await prisma.auction.create({
-            data: {
-                productId: data.productId,
-                minBid: new Decimal(data.minBid),
-                maxBid: data.maxBid ? new Decimal(data.maxBid) : null,
-                startDate: new Date(data.startDate),
-                endDate: new Date(data.endDate),
-                currentBid: null,
-                bidCount: 0,
-                status: 'active',
-            },
+        // Auction takes 1 item from regular stock
+        const auctionQuantity = 1;
+
+        if (product.quantityAvailable < auctionQuantity) {
+            return new Response(JSON.stringify({
+                message: 'Insufficient stock',
+                detail: `Product only has ${product.quantityAvailable} items available, but auction requires ${auctionQuantity} item.`
+            }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        // Use transaction to create auction and decrease product stock atomically
+        const result = await prisma.$transaction(async (tx) => {
+            // Decrease product stock
+            await tx.product.update({
+                where: { id: data.productId },
+                data: {
+                    quantityAvailable: {
+                        decrement: auctionQuantity
+                    }
+                }
+            });
+
+            // Create auction
+            const auction = await tx.auction.create({
+                data: {
+                    productId: data.productId,
+                    minBid: new Decimal(data.minBid),
+                    maxBid: data.maxBid ? new Decimal(data.maxBid) : null,
+                    startDate: new Date(data.startDate),
+                    endDate: new Date(data.endDate),
+                    currentBid: null,
+                    bidCount: 0,
+                    status: 'active',
+                },
+            });
+
+            return auction;
         });
 
         return new Response(JSON.stringify({
             message: 'Auction created successfully',
             auction: {
-                id: auction.id,
-                productId: auction.productId,
-                minBid: Number(auction.minBid),
-                maxBid: auction.maxBid ? Number(auction.maxBid) : null,
-                startDate: auction.startDate,
-                endDate: auction.endDate,
-                currentBid: auction.currentBid ? Number(auction.currentBid) : null,
-                bidCount: auction.bidCount,
-                status: auction.status,
+                id: result.id,
+                productId: result.productId,
+                minBid: Number(result.minBid),
+                maxBid: result.maxBid ? Number(result.maxBid) : null,
+                startDate: result.startDate,
+                endDate: result.endDate,
+                currentBid: result.currentBid ? Number(result.currentBid) : null,
+                bidCount: result.bidCount,
+                status: result.status,
             }
         }), {
             status: 201,

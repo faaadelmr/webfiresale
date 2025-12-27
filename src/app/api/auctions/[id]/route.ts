@@ -160,12 +160,42 @@ export async function DELETE(
             });
         }
 
-        await prisma.auction.delete({
+        // Get auction first to know how much stock to restore
+        const auction = await prisma.auction.findUnique({
             where: { id },
+            select: { productId: true, status: true }
+        });
+
+        if (!auction) {
+            return new Response(JSON.stringify({ message: 'Auction not found' }), {
+                status: 404,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        // Use transaction to delete auction and restore stock atomically
+        await prisma.$transaction(async (tx) => {
+            // Delete the auction
+            await tx.auction.delete({
+                where: { id },
+            });
+
+            // Only restore stock if auction was not sold
+            // (if sold, stock was already deducted from product and given to buyer)
+            if (auction.status !== 'sold') {
+                await tx.product.update({
+                    where: { id: auction.productId },
+                    data: {
+                        quantityAvailable: {
+                            increment: 1 // Auctions reserve 1 item
+                        }
+                    }
+                });
+            }
         });
 
         return new Response(JSON.stringify({
-            message: 'Auction deleted successfully'
+            message: 'Auction deleted and stock restored successfully'
         }), {
             status: 200,
             headers: { 'Content-Type': 'application/json' },

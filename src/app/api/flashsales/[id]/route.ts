@@ -137,12 +137,45 @@ export async function DELETE(
             });
         }
 
-        await prisma.flashSale.delete({
+        // Get flash sale first to know how much stock to restore
+        const flashSale = await prisma.flashSale.findUnique({
             where: { id },
+            select: { productId: true, limitedQuantity: true, sold: true }
+        });
+
+        if (!flashSale) {
+            return new Response(JSON.stringify({ message: 'Flash sale not found' }), {
+                status: 404,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        // Calculate unsold quantity to restore
+        const unsoldQuantity = flashSale.limitedQuantity - flashSale.sold;
+
+        // Use transaction to delete flash sale and restore stock atomically
+        await prisma.$transaction(async (tx) => {
+            // Delete the flash sale
+            await tx.flashSale.delete({
+                where: { id },
+            });
+
+            // Restore unsold stock to product
+            if (unsoldQuantity > 0) {
+                await tx.product.update({
+                    where: { id: flashSale.productId },
+                    data: {
+                        quantityAvailable: {
+                            increment: unsoldQuantity
+                        }
+                    }
+                });
+            }
         });
 
         return new Response(JSON.stringify({
-            message: 'Flash sale deleted successfully'
+            message: 'Flash sale deleted and stock restored successfully',
+            restoredQuantity: unsoldQuantity
         }), {
             status: 200,
             headers: { 'Content-Type': 'application/json' },

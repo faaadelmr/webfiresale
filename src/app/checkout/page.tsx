@@ -22,7 +22,7 @@ export const fetchCache = 'force-no-store';
 
 // Separate the component that needs search params to avoid static prerendering issues
 function CheckoutContent() {
-    const { cartItems, cartTotal, clearCart } = useCart();
+    const { cartItems, cartTotal, clearCart, refreshCart } = useCart();
     const searchParams = useSearchParams();
     const auctionId = searchParams.get('auctionId');
     const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
@@ -38,6 +38,11 @@ function CheckoutContent() {
     const [reservationIds, setReservationIds] = useState<string[]>([]);
     const [reservationExpiry, setReservationExpiry] = useState<Date | null>(null);
     const reservationsCreatedRef = useRef(false);
+
+    // Refresh cart data on mount to ensure we have latest data from DB
+    useEffect(() => {
+        refreshCart();
+    }, [refreshCart]);
 
     useEffect(() => {
         const loadCheckoutData = async () => {
@@ -107,17 +112,17 @@ function CheckoutContent() {
         loadCheckoutData();
     }, [auctionId]);
 
-    // Create stock reservations for flash sale items and auctions
+    // Create stock reservations for all items (flash sales, auctions, and regular products)
     useEffect(() => {
         // Skip if already created
         if (reservationsCreatedRef.current) return;
 
         // Skip if cart is still loading (empty but might have items)
         // We check isAuctionCheckout to allow auction checkout without cart items
-        const hasFlashSaleItems = cartItems.some(item => item.product.flashSaleId);
+        const hasItems = cartItems.length > 0;
 
-        // If no flash sale items and no auction, nothing to reserve
-        if (!hasFlashSaleItems && !auctionId) {
+        // If no items and no auction, nothing to reserve
+        if (!hasItems && !auctionId) {
             return;
         }
 
@@ -126,9 +131,10 @@ function CheckoutContent() {
             const newReservationIds: string[] = [];
             let earliestExpiry: Date | null = null;
 
-            // Create reservations for flash sale items in cart
+            // Create reservations for all items in cart
             for (const item of cartItems) {
                 if (item.product.flashSaleId) {
+                    // Flash sale item - reserve with flashSaleId
                     try {
                         console.log('Creating reservation for flashSale:', item.product.flashSaleId, 'qty:', item.quantity);
                         const response = await fetch('/api/reservations', {
@@ -143,7 +149,7 @@ function CheckoutContent() {
 
                         if (response.ok) {
                             const data = await response.json();
-                            console.log('Reservation created:', data);
+                            console.log('Flash sale reservation created:', data);
                             if (data.reservationId) {
                                 newReservationIds.push(data.reservationId);
                                 if (data.expiresAt) {
@@ -157,13 +163,50 @@ function CheckoutContent() {
                             // Better error handling - check if response has content
                             try {
                                 const errorData = await response.json();
-                                console.error('Reservation failed:', errorData.error || errorData.message || 'Unknown error');
+                                console.error('Flash sale reservation failed:', errorData.error || errorData.message || 'Unknown error');
                             } catch {
-                                console.error('Reservation failed with status:', response.status);
+                                console.error('Flash sale reservation failed with status:', response.status);
                             }
                         }
                     } catch (error) {
                         console.error('Error creating flash sale reservation:', error);
+                    }
+                } else {
+                    // Regular product - reserve with productId
+                    try {
+                        console.log('Creating reservation for product:', item.product.id, 'qty:', item.quantity);
+                        const response = await fetch('/api/reservations', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                type: 'product',
+                                productId: item.product.id,
+                                quantity: item.quantity,
+                            }),
+                        });
+
+                        if (response.ok) {
+                            const data = await response.json();
+                            console.log('Product reservation created:', data);
+                            if (data.reservationId) {
+                                newReservationIds.push(data.reservationId);
+                                if (data.expiresAt) {
+                                    const expiry = new Date(data.expiresAt);
+                                    if (!earliestExpiry || expiry < earliestExpiry) {
+                                        earliestExpiry = expiry;
+                                    }
+                                }
+                            }
+                        } else {
+                            try {
+                                const errorData = await response.json();
+                                console.error('Product reservation failed:', errorData.error || errorData.message || 'Unknown error');
+                            } catch {
+                                console.error('Product reservation failed with status:', response.status);
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error creating product reservation:', error);
                     }
                 }
             }
@@ -428,8 +471,8 @@ function CheckoutContent() {
                                     )
                                 ) : (
                                     // Regular cart items display
-                                    cartItems.map(item => (
-                                        <div key={item.product.id} className="flex items-start gap-4">
+                                    cartItems.map((item, index) => (
+                                        <div key={`${item.product.id}-${item.product.flashSaleId || 'regular'}-${index}`} className="flex items-start gap-4">
                                             <Image src={item.product.image} alt={item.product.name} width={64} height={64} className="rounded-md object-cover" />
                                             <div className="flex-1">
                                                 <p className="font-medium text-sm">{item.product.name}</p>

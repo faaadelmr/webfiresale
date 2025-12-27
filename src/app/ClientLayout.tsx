@@ -1,7 +1,6 @@
 "use client";
 import { CartProvider } from '@/context/cart-context';
 import { ThemeProvider } from '@/context/ThemeContext';
-import PeriodicProcessor from '@/components/PeriodicProcessor';
 import SessionProviderWrapper from '@/components/SessionProviderWrapper';
 import { DeveloperEasterEgg } from '@/components/developer-easter-egg';
 import { ReactNode } from 'react';
@@ -34,7 +33,6 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
         <SessionProviderWrapper>
           <ThemeProvider>
             <CartProvider>
-              <PeriodicProcessor />
               <DeveloperEasterEgg />
               <LayoutContent>{children}</LayoutContent>
             </CartProvider>
@@ -44,3 +42,4 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
     </html>
   );
 }
+

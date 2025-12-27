@@ -54,15 +54,18 @@ export async function findOrCreateOAuthUser(profile: any, provider: string) {
       return null;
     }
 
-    // Update existing user with provider info if needed
-    if (!user.providerId) {
+    // Get avatar from OAuth profile
+    const oauthAvatar = profile.picture || profile.image || profile.avatar;
+
+    // Update existing user with provider info if needed OR update avatar if missing
+    if (!user.providerId || (!user.avatar && oauthAvatar)) {
       user = await prisma.user.update({
         where: { id: user.id },
         data: {
-          providerId: profile.id?.toString(),
-          provider,
+          providerId: profile.id?.toString() || user.providerId,
+          provider: provider || user.provider,
           name: profile.name || profile.displayName || user.name,
-          avatar: profile.picture || profile.avatar || user.avatar, // Save avatar from OAuth if available
+          avatar: user.avatar || oauthAvatar, // Only update avatar if not already set
         }
       })
     }
@@ -70,13 +73,14 @@ export async function findOrCreateOAuthUser(profile: any, provider: string) {
   }
 
   // Create new user with default role 'customer'
+  const newUserAvatar = profile.picture || profile.image || profile.avatar;
   user = await prisma.user.create({
     data: {
       name: profile.name || profile.displayName,
       email: profile.email,
       providerId: profile.id?.toString(),
       provider,
-      avatar: profile.picture || profile.avatar, // Save avatar from OAuth if available
+      avatar: newUserAvatar, // Save avatar from OAuth if available
       role: 'customer', // Default role for new users
     }
   })

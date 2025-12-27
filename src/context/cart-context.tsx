@@ -16,6 +16,7 @@ export interface CartContextType {
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
   toggleCart: () => void;
+  refreshCart: () => Promise<void>;
   cartTotal: number;
   totalItems: number;
 }
@@ -28,30 +29,36 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
   const [isInitialized, setIsInitialized] = useState(false); // Track if we've loaded cart from DB
 
+  // Load cart from database function (reusable)
+  const loadCartFromDB = useCallback(async () => {
+    try {
+      const response = await fetch('/api/cart', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const { cartItems: dbCartItems } = await response.json();
+        setCartItems(dbCartItems);
+      }
+      setIsInitialized(true);
+    } catch (error) {
+      console.error('Error loading cart from database:', error);
+      setIsInitialized(true); // Still mark as initialized to allow UI to render
+    }
+  }, []);
+
   // Load cart from database on mount
   useEffect(() => {
-    const loadCartFromDB = async () => {
-      try {
-        const response = await fetch('/api/cart', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (response.ok) {
-          const { cartItems: dbCartItems } = await response.json();
-          setCartItems(dbCartItems);
-        }
-        setIsInitialized(true);
-      } catch (error) {
-        console.error('Error loading cart from database:', error);
-        setIsInitialized(true); // Still mark as initialized to allow UI to render
-      }
-    };
-
     loadCartFromDB();
-  }, []);
+  }, [loadCartFromDB]);
+
+  // Refresh cart function to be called manually
+  const refreshCart = useCallback(async () => {
+    await loadCartFromDB();
+  }, [loadCartFromDB]);
 
   const addToCart = useCallback((product: CartProduct) => {
     if (!isInitialized) {
@@ -387,6 +394,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         updateQuantity,
         clearCart,
         toggleCart,
+        refreshCart,
         cartTotal,
         totalItems
       }}

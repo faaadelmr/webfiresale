@@ -29,8 +29,8 @@ export function CartDropdown() {
                         <>
                             {/* Cart Items - Max 3 visible, scrollable */}
                             <div className="max-h-64 overflow-y-auto space-y-3 py-2">
-                                {cartItems.map((item) => (
-                                    <div key={item.product.id} className="flex items-start gap-3 p-2 bg-base-200 rounded-lg">
+                                {cartItems.map((item, index) => (
+                                    <div key={`${item.product.id}-${item.product.flashSaleId || 'regular'}-${index}`} className="flex items-start gap-3 p-2 bg-base-200 rounded-lg">
                                         <Image
                                             src={item.product.image}
                                             alt={item.product.name}

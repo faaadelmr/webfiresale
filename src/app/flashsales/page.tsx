@@ -186,30 +186,42 @@ export default function FlashSalePage() {
             return;
         }
 
-        // Add to cart first
-        const cartProduct = {
-            id: product.id,
-            name: product.name,
-            description: product.description,
-            image: product.image,
-            originalPrice: product.originalPrice,
-            quantity: product.quantity,
-            weight: product.weight,
-            flashSaleId: product.flashSaleId,
-            flashSalePrice: product.flashSalePrice,
-            maxOrderQuantity: product.maxOrderQuantity || undefined,
-            limitedQuantity: product.limitedQuantity,
-            sold: product.sold,
-            startDate: new Date(product.startDate),
-            endDate: new Date(product.endDate),
-        };
+        try {
+            // Add to cart directly via API and wait for it to complete
+            const response = await fetch('/api/cart', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    productId: product.id,
+                    quantity: quantity,
+                    price: product.flashSalePrice,
+                    flashSaleId: product.flashSaleId,
+                }),
+            });
 
-        for (let i = 0; i < quantity; i++) {
-            addToCart(cartProduct);
+            if (!response.ok) {
+                throw new Error('Failed to add to cart');
+            }
+
+            // Wait for cart sync to complete, then redirect
+            toast({
+                title: '🛒 Menuju Checkout...',
+                description: `${quantity} x "${product.name}" ditambahkan.`,
+            });
+
+            // Small delay to ensure cart is synced, then redirect
+            await new Promise(resolve => setTimeout(resolve, 300));
+            window.location.href = '/checkout';
+        } catch (error) {
+            console.error('Error adding to cart:', error);
+            toast({
+                title: 'Gagal',
+                description: 'Terjadi kesalahan saat menambahkan ke keranjang.',
+                variant: 'destructive',
+            });
         }
-
-        // Redirect to checkout
-        window.location.href = '/checkout';
     };
 
     const handleQuantityChange = (amount: number) => {

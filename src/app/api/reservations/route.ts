@@ -5,9 +5,11 @@ import prisma from '@/lib/prisma';
 import {
     createFlashSaleReservation,
     createAuctionReservation,
+    createProductReservation,
     cancelReservation,
     processExpiredReservations,
     getAvailableFlashSaleStock,
+    getAvailableProductStock,
 } from '@/actions/stockReservation';
 
 // POST - Create a new stock reservation
@@ -44,7 +46,7 @@ export async function POST(request: NextRequest) {
 
         const data = await request.json();
         console.log('Reservation API - Request data:', JSON.stringify(data));
-        const { type, flashSaleId, auctionId, quantity } = data;
+        const { type, flashSaleId, auctionId, productId, quantity } = data;
 
         if (type === 'flashsale') {
             if (!flashSaleId || !quantity) {
@@ -98,8 +100,38 @@ export async function POST(request: NextRequest) {
             });
         }
 
+        if (type === 'product') {
+            if (!productId || !quantity) {
+                return NextResponse.json(
+                    { error: 'productId and quantity are required' },
+                    { status: 400 }
+                );
+            }
+
+            console.log('Reservation API - Creating product reservation for:', { userId, productId, quantity });
+
+            const result = await createProductReservation(
+                userId,
+                productId,
+                quantity
+            );
+
+            console.log('Reservation API - Result:', JSON.stringify(result));
+
+            if (!result.success) {
+                return NextResponse.json({ error: result.message }, { status: 400 });
+            }
+
+            return NextResponse.json({
+                success: true,
+                reservationId: result.reservationId,
+                expiresAt: result.expiresAt,
+                message: result.message,
+            });
+        }
+
         return NextResponse.json(
-            { error: 'Invalid reservation type' },
+            { error: 'Invalid reservation type. Valid types: flashsale, auction, product' },
             { status: 400 }
         );
     } catch (error) {
@@ -148,11 +180,12 @@ export async function DELETE(request: NextRequest) {
     }
 }
 
-// GET - Get available stock for a flash sale (with reservations considered)
+// GET - Get available stock for a flash sale or product (with reservations considered)
 export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const flashSaleId = searchParams.get('flashSaleId');
+        const productId = searchParams.get('productId');
         const action = searchParams.get('action');
 
         // Process expired reservations (cleanup) - requires auth
@@ -168,19 +201,28 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        if (!flashSaleId) {
-            return NextResponse.json(
-                { error: 'flashSaleId is required' },
-                { status: 400 }
-            );
+        // Get available stock for flash sale
+        if (flashSaleId) {
+            const availableStock = await getAvailableFlashSaleStock(flashSaleId);
+            return NextResponse.json({
+                success: true,
+                availableStock
+            });
         }
 
-        const availableStock = await getAvailableFlashSaleStock(flashSaleId);
+        // Get available stock for regular product
+        if (productId) {
+            const availableStock = await getAvailableProductStock(productId);
+            return NextResponse.json({
+                success: true,
+                availableStock
+            });
+        }
 
-        return NextResponse.json({
-            success: true,
-            availableStock
-        });
+        return NextResponse.json(
+            { error: 'flashSaleId or productId is required' },
+            { status: 400 }
+        );
     } catch (error) {
         console.error('Error getting available stock:', error);
         return NextResponse.json(

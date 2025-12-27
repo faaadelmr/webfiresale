@@ -6,6 +6,8 @@ import prisma from '@/lib/prisma';
 const FLASHSALE_RESERVATION_DURATION_MINUTES = 15;
 // Duration for auction winner reservation (in hours) - 24 hours to complete checkout
 const AUCTION_RESERVATION_DURATION_HOURS = 24;
+// Duration for regular product reservation (in minutes) - 15 minutes to complete checkout
+const PRODUCT_RESERVATION_DURATION_MINUTES = 15;
 
 export interface ReservationResult {
     success: boolean;
@@ -104,6 +106,127 @@ export async function createFlashSaleReservation(
     } catch (error) {
         console.error('Error creating flash sale reservation:', error);
         return { success: false, message: 'Failed to create reservation' };
+    }
+}
+
+/**
+ * Create a stock reservation for regular product when entering checkout
+ */
+export async function createProductReservation(
+    userId: string,
+    productId: string,
+    quantity: number
+): Promise<ReservationResult> {
+    try {
+        // Check if product exists
+        const product = await prisma.product.findUnique({
+            where: { id: productId },
+        });
+
+        if (!product) {
+            return { success: false, message: 'Product not found' };
+        }
+
+        // Check available stock (quantityAvailable - active reservations)
+        const activeReservations = await prisma.stockReservation.aggregate({
+            where: {
+                productId,
+                type: 'product',
+                status: 'active',
+                expiresAt: { gt: new Date() },
+            },
+            _sum: { quantity: true },
+        });
+
+        const reservedQuantity = activeReservations._sum.quantity || 0;
+        const availableStock = product.quantityAvailable - reservedQuantity;
+
+        if (quantity > availableStock) {
+            return {
+                success: false,
+                message: `Insufficient stock. Only ${availableStock} items available.`
+            };
+        }
+
+        // Check if user already has an active reservation for this product
+        const existingReservation = await prisma.stockReservation.findFirst({
+            where: {
+                userId,
+                productId,
+                type: 'product',
+                status: 'active',
+                expiresAt: { gt: new Date() },
+            },
+        });
+
+        if (existingReservation) {
+            // Update existing reservation
+            const expiresAt = new Date(Date.now() + PRODUCT_RESERVATION_DURATION_MINUTES * 60 * 1000);
+            await prisma.stockReservation.update({
+                where: { id: existingReservation.id },
+                data: { quantity, expiresAt, updatedAt: new Date() },
+            });
+
+            return {
+                success: true,
+                reservationId: existingReservation.id,
+                message: 'Reservation updated',
+                expiresAt,
+            };
+        }
+
+        // Create new reservation
+        const expiresAt = new Date(Date.now() + PRODUCT_RESERVATION_DURATION_MINUTES * 60 * 1000);
+        const reservation = await prisma.stockReservation.create({
+            data: {
+                userId,
+                productId,
+                quantity,
+                type: 'product',
+                status: 'active',
+                expiresAt,
+            },
+        });
+
+        return {
+            success: true,
+            reservationId: reservation.id,
+            message: 'Stock reserved successfully',
+            expiresAt,
+        };
+    } catch (error) {
+        console.error('Error creating product reservation:', error);
+        return { success: false, message: 'Failed to create reservation' };
+    }
+}
+
+/**
+ * Get available stock for product (considering active reservations)
+ */
+export async function getAvailableProductStock(productId: string): Promise<number> {
+    try {
+        const product = await prisma.product.findUnique({
+            where: { id: productId },
+        });
+
+        if (!product) return 0;
+
+        // Get total reserved quantity for this product
+        const activeReservations = await prisma.stockReservation.aggregate({
+            where: {
+                productId,
+                type: 'product',
+                status: 'active',
+                expiresAt: { gt: new Date() },
+            },
+            _sum: { quantity: true },
+        });
+
+        const reservedQuantity = activeReservations._sum.quantity || 0;
+        return Math.max(0, product.quantityAvailable - reservedQuantity);
+    } catch (error) {
+        console.error('Error getting available product stock:', error);
+        return 0;
     }
 }
 
