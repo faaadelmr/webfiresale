@@ -149,6 +149,7 @@ export type GeneralSettings = {
   businessEmail?: string;
   businessLogoUrl?: string;
   printSize?: PrintSize;
+  theme?: string;
 };
 
 export type BusinessAddress = {

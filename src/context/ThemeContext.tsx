@@ -30,13 +30,45 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const [theme, setThemeState] = useState<Theme>('light');
     const [mounted, setMounted] = useState(false);
 
-    // Load theme from localStorage on mount
+    // Load theme from localStorage on mount, then check server
     useEffect(() => {
-        const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
-        if (storedTheme && AVAILABLE_THEMES.includes(storedTheme)) {
-            setThemeState(storedTheme);
-        }
-        setMounted(true);
+        const initTheme = async () => {
+            // Check for preview theme in URL (used by admin theme preview)
+            const urlParams = new URLSearchParams(window.location.search);
+            const previewTheme = urlParams.get('previewTheme') as Theme | null;
+
+            if (previewTheme && AVAILABLE_THEMES.includes(previewTheme)) {
+                // Preview mode - use the theme from URL and skip API call
+                setThemeState(previewTheme);
+                setMounted(true);
+                return;
+            }
+
+            // First try to get from localStorage for immediate render if available
+            const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
+            if (storedTheme && AVAILABLE_THEMES.includes(storedTheme)) {
+                setThemeState(storedTheme);
+            }
+
+            setMounted(true);
+
+            // Then fetch global theme from server to enforce admin choice
+            try {
+                const res = await fetch('/api/settings/theme');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.theme && AVAILABLE_THEMES.includes(data.theme)) {
+                        setThemeState(data.theme);
+                        // Optional: Force update localStorage to match server
+                        localStorage.setItem(THEME_STORAGE_KEY, data.theme);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch global theme:', error);
+            }
+        };
+
+        initTheme();
     }, []);
 
     // Apply theme to document when theme changes

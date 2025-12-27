@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
             businessEmail: settings.businessEmail,
             businessLogoUrl: settings.businessLogoUrl,
             printSize: settings.printSize,
+            theme: settings.theme,
         }), {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
@@ -68,6 +69,7 @@ export async function PATCH(request: NextRequest) {
         if (data.businessEmail !== undefined) updateData.businessEmail = data.businessEmail;
         if (data.businessLogoUrl !== undefined) updateData.businessLogoUrl = data.businessLogoUrl;
         if (data.printSize !== undefined) updateData.printSize = data.printSize;
+        if (data.theme !== undefined) updateData.theme = data.theme;
 
         if (settings) {
             // Update existing settings
@@ -86,6 +88,7 @@ export async function PATCH(request: NextRequest) {
                     businessEmail: data.businessEmail,
                     businessLogoUrl: data.businessLogoUrl,
                     printSize: data.printSize ?? 'a4',
+                    theme: data.theme ?? 'light',
                 },
             });
         }
@@ -103,6 +106,7 @@ export async function PATCH(request: NextRequest) {
                 businessEmail: settings.businessEmail,
                 businessLogoUrl: settings.businessLogoUrl,
                 printSize: settings.printSize,
+                theme: settings.theme,
             }
         }), {
             status: 200,

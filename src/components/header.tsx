@@ -3,8 +3,9 @@
 import { APP_NAME } from "@/lib/app-config"
 import { Flame, LogOut, User, Bell, ShoppingBag, Search } from "lucide-react"
 import { CartDropdown } from "./cart-dropdown"
-import { ThemeSwitcher } from "./ThemeSwitcher"
+
 import Link from "next/link"
+import Image from "next/image"
 import { useState, useEffect, useCallback } from "react"
 import type { Order } from "@/lib/types"
 import { useSession } from "next-auth/react"
@@ -34,7 +35,26 @@ export function Header() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(true)
   const [scrolled, setScrolled] = useState(false)
+  const [businessLogo, setBusinessLogo] = useState<string | null>(null)
   const pathname = usePathname()
+
+  // Fetch business logo from settings
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch('/api/settings');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.businessLogoUrl) {
+            setBusinessLogo(data.businessLogoUrl);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch settings:', error);
+      }
+    };
+    fetchSettings();
+  }, []);
 
   // Handle scroll effect
   useEffect(() => {
@@ -281,9 +301,19 @@ export function Header() {
       <div className="container flex h-16 items-center justify-between px-4">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 cursor-pointer no-underline">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
-            <Flame className="h-5 w-5 fill-current" />
-          </div>
+          {businessLogo ? (
+            <Image
+              src={businessLogo}
+              alt={APP_NAME}
+              width={32}
+              height={32}
+              className="h-8 w-8 object-contain rounded-full"
+            />
+          ) : (
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              <Flame className="h-5 w-5 fill-current" />
+            </div>
+          )}
           <span className="text-xl font-bold tracking-tight text-base-content">
             {APP_NAME}
           </span>
@@ -298,7 +328,6 @@ export function Header() {
 
         {/* Right Actions */}
         <div className="flex items-center gap-2 md:gap-4">
-          <ThemeSwitcher />
 
           {/* Notifications */}
           <div className="relative">

@@ -40,6 +40,8 @@ export default function SettingsClient() {
   const [districts, setDistricts] = useState<any[]>([]);
   const [villages, setVillages] = useState<any[]>([]);
   const [cities, setCities] = useState<any[]>([]);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
   // Handle province change
@@ -160,7 +162,13 @@ export default function SettingsClient() {
     }
   }, [toast]);
 
-  const handleSaveSettings = async () => {
+  const handleSaveClick = () => {
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfirmSave = async () => {
+    setShowConfirmDialog(false);
+    setIsSaving(true);
     try {
       const settingsToSave = {
         bannerEnabled: generalSettings.bannerEnabled,
@@ -170,6 +178,7 @@ export default function SettingsClient() {
         businessEmail: generalSettings.businessEmail || null,
         businessLogoUrl: generalSettings.businessLogoUrl || null,
         printSize: generalSettings.printSize || 'a4',
+        theme: generalSettings.theme || 'light',
       };
 
       const response = await fetch('/api/settings', {
@@ -197,6 +206,8 @@ export default function SettingsClient() {
         variant: "destructive"
       });
       console.error("Error saving settings:", error);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -580,6 +591,7 @@ export default function SettingsClient() {
           </div>
         </div>
 
+
         <div className="space-y-6">
           {/* General Order Settings */}
           <div className="bg-base-100 rounded-xl border border-base-200 shadow-sm overflow-hidden">
@@ -645,8 +657,39 @@ export default function SettingsClient() {
       </div>
 
       <div className="flex justify-end mt-8">
-        <button className="btn btn-primary btn-lg" onClick={handleSaveSettings}>Simpan Semua Pengaturan</button>
+        <button
+          className={`btn btn-primary btn-lg ${isSaving ? 'loading' : ''}`}
+          onClick={handleSaveClick}
+          disabled={isSaving}
+        >
+          {!isSaving && '💾'} Simpan Semua Pengaturan
+        </button>
       </div>
+
+      {/* Confirmation Dialog */}
+      {showConfirmDialog && (
+        <div className="modal modal-open">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg">Konfirmasi Penyimpanan</h3>
+            <p className="py-4">Apakah Anda yakin ingin menyimpan semua pengaturan? Perubahan akan diterapkan ke seluruh aplikasi.</p>
+            <div className="modal-action">
+              <button
+                className="btn btn-ghost"
+                onClick={() => setShowConfirmDialog(false)}
+              >
+                Batal
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleConfirmSave}
+              >
+                Ya, Simpan
+              </button>
+            </div>
+          </div>
+          <div className="modal-backdrop bg-black/50" onClick={() => setShowConfirmDialog(false)}></div>
+        </div>
+      )}
     </div>
   );
 }

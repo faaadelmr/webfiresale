@@ -210,6 +210,7 @@ model GeneralSettings {
   businessEmail   String?  // Email for business contact
   businessLogoUrl String?  // Logo URL or base64 for shipping label
   printSize       String   @default("a4")  // "a4" or other sizes
+  theme           String   @default("light") // Global theme setting
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }

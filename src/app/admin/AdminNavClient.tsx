@@ -1,11 +1,12 @@
 "use client";
 
 import { APP_NAME } from "@/lib/app-config";
-import { Dispatch, SetStateAction } from "react";
+import { Dispatch, SetStateAction, useState, useEffect } from "react";
 import {
-  Flame, LayoutDashboard, Users, Package, ShoppingBasket, Zap, Truck, Settings, ChevronRight, Home
+  Flame, LayoutDashboard, Users, Package, ShoppingBasket, Zap, Truck, Settings, ChevronRight, Home, Palette
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,25 @@ interface NavProps {
 export default function AdminNavClient({ mobile, setSidebarOpen, expanded = true }: NavProps) {
   const { data: session, status } = useSession();
   const pathname = usePathname();
+  const [businessLogo, setBusinessLogo] = useState<string | null>(null);
+
+  // Fetch business logo
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch('/api/settings');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.businessLogoUrl) {
+            setBusinessLogo(data.businessLogoUrl);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch settings:', error);
+      }
+    };
+    fetchSettings();
+  }, []);
 
   const navLinks = [
     { href: "/admin", icon: LayoutDashboard, label: "Dashboard" },
@@ -32,6 +52,7 @@ export default function AdminNavClient({ mobile, setSidebarOpen, expanded = true
     { href: "/admin/auction", icon: Flame, label: "Lelang" },
     { href: "/admin/flashsale", icon: Zap, label: "Flash Sale" },
     { href: "/admin/shipping", icon: Truck, label: "Pengiriman" },
+    { href: "/admin/theme", icon: Palette, label: "Tema" },
     { href: "/admin/settings", icon: Settings, label: "Pengaturan" },
   ];
 
@@ -55,9 +76,19 @@ export default function AdminNavClient({ mobile, setSidebarOpen, expanded = true
         "flex items-center gap-3 p-4 border-b border-primary-content/10",
         !expanded && !mobile && "justify-center"
       )}>
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-content/20 backdrop-blur-sm">
-          <Flame className="h-6 w-6 text-primary-content" />
-        </div>
+        {businessLogo ? (
+          <Image
+            src={businessLogo}
+            alt={APP_NAME}
+            width={40}
+            height={40}
+            className="h-10 w-10 object-contain rounded-xl"
+          />
+        ) : (
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-content/20 backdrop-blur-sm">
+            <Flame className="h-6 w-6 text-primary-content" />
+          </div>
+        )}
         {(expanded || mobile) && (
           <span className="text-lg font-bold">{APP_NAME}</span>
         )}
