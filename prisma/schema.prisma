@@ -211,6 +211,8 @@ model GeneralSettings {
   businessLogoUrl String?  // Logo URL or base64 for shipping label
   printSize       String   @default("a4")  // "a4" or other sizes
   theme           String   @default("light") // Global theme setting
+  heroTagline     String?  // Main hero tagline on homepage
+  heroSubtitle    String?  // Hero subtitle/description on homepage
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }

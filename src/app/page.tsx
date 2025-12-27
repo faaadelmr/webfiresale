@@ -34,6 +34,8 @@ interface Product {
 interface Settings {
   bannerEnabled: boolean;
   bannerImage?: string;
+  heroTagline?: string;
+  heroSubtitle?: string;
 }
 
 export default function Home() {
@@ -159,13 +161,26 @@ export default function Home() {
               >
                 Official Store Terpercaya
               </Badge>
-              <h1 className="font-headline text-5xl font-bold tracking-tighter sm:text-6xl md:text-7xl leading-tight">
-                Temukan Barang <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">Impianmu</span> Disini.
-              </h1>
-              <p className="max-w-[600px] text-base-content/70 md:text-lg">
-                Platform eksklusif yang menggabungkan lelang barang mewah dan flash sale elektronik
-                dengan harga terbaik.
-              </p>
+              {isLoading ? (
+                <div className="space-y-4 w-full">
+                  <div className="h-16 md:h-20 w-3/4 bg-base-200 animate-pulse rounded-xl"></div>
+                  <div className="h-16 md:h-20 w-1/2 bg-base-200 animate-pulse rounded-xl"></div>
+                  <div className="h-6 w-full max-w-[500px] bg-base-200 animate-pulse rounded-lg mt-4"></div>
+                </div>
+              ) : (
+                <>
+                  <h1
+                    className="font-headline text-5xl font-bold tracking-tighter sm:text-6xl md:text-7xl leading-tight"
+                    dangerouslySetInnerHTML={{
+                      __html: settings?.heroTagline ||
+                        'Temukan Barang <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">Impianmu</span> Disini.'
+                    }}
+                  />
+                  <p className="max-w-[600px] text-base-content/70 md:text-lg">
+                    {settings?.heroSubtitle || 'Platform eksklusif yang menggabungkan lelang barang mewah dan flash sale elektronik dengan harga terbaik.'}
+                  </p>
+                </>
+              )}
               <div className="flex flex-col gap-4 sm:flex-row pt-4">
                 <Button asChild size="lg" className="rounded-full px-8 py-6 text-base font-semibold shadow-lg shadow-primary/20">
                   <Link href="/products">Mulai Belanja</Link>

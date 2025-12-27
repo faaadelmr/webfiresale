@@ -150,6 +150,8 @@ export type GeneralSettings = {
   businessLogoUrl?: string;
   printSize?: PrintSize;
   theme?: string;
+  heroTagline?: string;
+  heroSubtitle?: string;
 };
 
 export type BusinessAddress = {

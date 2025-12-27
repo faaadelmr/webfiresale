@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import type { GeneralSettings, AccountSettings, BusinessAddress, PrintSize } from "@/lib/types";
 import { getGeneralSettingsFromStorage, saveGeneralSettingsToStorage, getAccountSettingsFromStorage, saveAccountSettingsToStorage } from "@/lib/utils";
-import { Banknote, Image as ImageIcon, Upload, ToggleRight, MapPin } from "lucide-react";
+import { Banknote, Image as ImageIcon, Upload, ToggleRight, MapPin, LayoutTemplate } from "lucide-react";
 import Image from "next/image";
 import { mockRegions, getDistrictsByCity, getVillagesByDistrict, getAllCities } from "@/lib/regions";
 
@@ -179,6 +179,8 @@ export default function SettingsClient() {
         businessLogoUrl: generalSettings.businessLogoUrl || null,
         printSize: generalSettings.printSize || 'a4',
         theme: generalSettings.theme || 'light',
+        heroTagline: generalSettings.heroTagline || null,
+        heroSubtitle: generalSettings.heroSubtitle || null,
       };
 
       const response = await fetch('/api/settings', {
@@ -240,6 +242,49 @@ export default function SettingsClient() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
+          {/* Home Page Settings (Hero Section) */}
+          <div className="bg-base-100 rounded-xl border border-base-200 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-base-200">
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <LayoutTemplate className="w-5 h-5" />
+                <span>Pengaturan Beranda</span>
+              </h2>
+              <p className="text-base-content/70 mt-1">
+                Kustomisasi tampilan dan teks pada halaman utama.
+              </p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="space-y-2">
+                <label className="label font-medium">
+                  <span className="label-text">Judul Utama (Tagline Hero)</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={generalSettings.heroTagline || ''}
+                    onChange={(e) => setGeneralSettings({ ...generalSettings, heroTagline: e.target.value })}
+                    placeholder="Contoh: Temukan Barang Impianmu Disini."
+                    className="input input-bordered w-full"
+                  />
+                </div>
+                <p className="text-xs text-base-content/60">
+                  Teks ini akan muncul sebagai judul besar di halaman utama. Gunakan &lt;span&gt; untuk highlight warna.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <label className="label font-medium">
+                  <span className="label-text">Sub-Judul (Deskripsi)</span>
+                </label>
+                <textarea
+                  value={generalSettings.heroSubtitle || ''}
+                  onChange={(e) => setGeneralSettings({ ...generalSettings, heroSubtitle: e.target.value })}
+                  placeholder="Contoh: Platform eksklusif yang menggabungkan lelang barang mewah..."
+                  className="textarea textarea-bordered w-full"
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Promotion Banner Settings */}
           <div className="bg-base-100 rounded-xl border border-base-200 shadow-sm overflow-hidden">
             <div className="p-6 border-b border-base-200">

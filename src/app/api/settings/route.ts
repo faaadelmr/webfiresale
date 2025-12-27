@@ -28,6 +28,8 @@ export async function GET(request: NextRequest) {
             businessLogoUrl: settings.businessLogoUrl,
             printSize: settings.printSize,
             theme: settings.theme,
+            heroTagline: settings.heroTagline,
+            heroSubtitle: settings.heroSubtitle,
         }), {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
@@ -70,6 +72,8 @@ export async function PATCH(request: NextRequest) {
         if (data.businessLogoUrl !== undefined) updateData.businessLogoUrl = data.businessLogoUrl;
         if (data.printSize !== undefined) updateData.printSize = data.printSize;
         if (data.theme !== undefined) updateData.theme = data.theme;
+        if (data.heroTagline !== undefined) updateData.heroTagline = data.heroTagline;
+        if (data.heroSubtitle !== undefined) updateData.heroSubtitle = data.heroSubtitle;
 
         if (settings) {
             // Update existing settings
@@ -107,6 +111,8 @@ export async function PATCH(request: NextRequest) {
                 businessLogoUrl: settings.businessLogoUrl,
                 printSize: settings.printSize,
                 theme: settings.theme,
+                heroTagline: settings.heroTagline,
+                heroSubtitle: settings.heroSubtitle,
             }
         }), {
             status: 200,
