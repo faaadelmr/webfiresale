@@ -7,6 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { useState, useEffect } from 'react';
 import { formatPrice } from '@/lib/utils';
+import { ShoppingCart } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { useCart } from '@/hooks/use-cart';
 
 interface HotItem {
   id: string;
@@ -18,17 +21,42 @@ interface HotItem {
   price?: number;
 }
 
+interface Product {
+  id: string;
+  name: string;
+  description: string;
+  image: string;
+  originalPrice: number;
+  quantityAvailable: number;
+  weight: number;
+}
+
+interface Settings {
+  bannerEnabled: boolean;
+  bannerImage?: string;
+}
+
 export default function Home() {
   const [hotItems, setHotItems] = useState<HotItem[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [settings, setSettings] = useState<Settings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { addToCart } = useCart();
+  const { toast } = useToast();
 
   useEffect(() => {
-    const fetchHotItems = async () => {
+    const fetchData = async () => {
       try {
+        const [auctionRes, flashSaleRes, productsRes, settingsRes] = await Promise.all([
+          fetch('/api/auctions?limit=1'),
+          fetch('/api/flashsales?active=true&limit=1'),
+          fetch('/api/products'),
+          fetch('/api/settings')
+        ]);
+
+        // Process Hot Items
         const items: HotItem[] = [];
 
-        // Fetch latest auction
-        const auctionRes = await fetch('/api/auctions?limit=1');
         if (auctionRes.ok) {
           const auctions = await auctionRes.json();
           const activeAuction = auctions.find((a: any) => a.status === 'active');
@@ -45,17 +73,12 @@ export default function Home() {
           }
         }
 
-        // Fetch latest flash sale
-        const flashSaleRes = await fetch('/api/flashsales?active=true&limit=1');
         if (flashSaleRes.ok) {
           const flashSales = await flashSaleRes.json();
           if (flashSales.length > 0) {
             const fs = flashSales[0];
-            // API returns product.image for admin format, or image for cart format
             const imageUrl = fs.product?.image || fs.image || '/placeholder.png';
             const productName = fs.product?.name || fs.name || 'Flash Sale';
-            const salePrice = fs.flashSalePrice;
-
             items.push({
               id: fs.id,
               title: productName,
@@ -63,25 +86,70 @@ export default function Home() {
               image: imageUrl,
               href: '/flashsales',
               type: 'flashsale',
-              price: salePrice,
+              price: fs.flashSalePrice,
             });
           }
         }
-
         setHotItems(items);
+
+        // Process Products
+        if (productsRes.ok) {
+          const allProducts = await productsRes.json();
+          setProducts(allProducts.filter((p: Product) => p.quantityAvailable > 0));
+        }
+
+        // Process Settings
+        if (settingsRes.ok) {
+          setSettings(await settingsRes.json());
+        }
+
       } catch (error) {
-        console.error('Error fetching hot items:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchHotItems();
+    fetchData();
   }, []);
+
+  const handleAddToCart = (e: React.MouseEvent, product: Product) => {
+    e.preventDefault(); // Prevent link navigation if wrapped in link
+
+    addToCart({
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      originalPrice: product.originalPrice,
+      flashSalePrice: product.originalPrice, // Regular products sold at original price
+      image: product.image,
+      weight: product.weight,
+      quantity: product.quantityAvailable, // Pass available stock as 'quantity' prop (Product type definition)
+    });
+
+    toast({
+      title: "Success",
+      description: "Product added to cart",
+    });
+  };
 
   return (
     <div className="flex w-full flex-col overflow-hidden">
-      <section className="relative w-full overflow-hidden bg-base-100 pt-24 md:pt-32 pb-0">
+      {/* Banner Section (if enabled) */}
+      {settings?.bannerEnabled && settings.bannerImage && (
+        <div className="w-full h-[300px] md:h-[400px] relative mt-16 md:mt-20">
+          <Image
+            src={settings.bannerImage}
+            alt="Banner Promosi"
+            fill
+            className="object-cover"
+            priority
+          />
+        </div>
+      )}
+
+      {/* Hero Section */}
+      <section className={`relative w-full overflow-hidden bg-base-100 ${settings?.bannerEnabled ? 'pt-10' : 'pt-24 md:pt-32'} pb-0`}>
         <div className="container mx-auto px-4 md:px-6">
           <div className="grid gap-8 lg:grid-cols-2 lg:gap-16 items-center min-h-[calc(100vh-8rem)]">
             <div className="flex flex-col justify-center space-y-6 z-10 text-center lg:text-left items-center lg:items-start">
@@ -100,15 +168,7 @@ export default function Home() {
               </p>
               <div className="flex flex-col gap-4 sm:flex-row pt-4">
                 <Button asChild size="lg" className="rounded-full px-8 py-6 text-base font-semibold shadow-lg shadow-primary/20">
-                  <Link href="/auctions">Mulai Belanja</Link>
-                </Button>
-                <Button
-                  asChild
-                  variant="outline"
-                  size="lg"
-                  className="rounded-full border-base-300 bg-base-100 px-8 py-6 text-base hover:bg-base-200 hover:text-base-content"
-                >
-                  <Link href="/about">Pelajari Cara Kerja</Link>
+                  <Link href="/products">Mulai Belanja</Link>
                 </Button>
               </div>
             </div>
@@ -161,14 +221,61 @@ export default function Home() {
                 </div>
               </div>
             )}
-
-            {/* Loading State */}
-            {isLoading && (
-              <div className="relative flex min-h-[450px] items-center justify-center lg:min-h-[600px] py-10 lg:py-0">
-                <span className="loading loading-spinner loading-lg text-primary"></span>
-              </div>
-            )}
           </div>
+        </div>
+      </section>
+
+      {/* Available Products Section */}
+      <section className="py-16 bg-base-200/30">
+        <div className="container mx-auto px-4 md:px-6">
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-2xl font-bold">Produk Tersedia</h2>
+            <Link href="/products" className="text-primary text-sm hover:underline">
+              Lihat Semua →
+            </Link>
+          </div>
+
+          {isLoading ? (
+            <div className="flex justify-center p-8">
+              <span className="loading loading-spinner loading-md text-primary"></span>
+            </div>
+          ) : products.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {products.slice(0, 8).map((product) => (
+                <div key={product.id} className="bg-base-100 rounded-xl overflow-hidden border border-base-200 hover:border-primary/30 transition-colors">
+                  <div className="relative aspect-square bg-base-200">
+                    <Image
+                      src={product.image || '/placeholder.png'}
+                      alt={product.name}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                  <div className="p-3">
+                    <h3 className="font-medium text-sm mb-1 line-clamp-1">
+                      {product.name}
+                    </h3>
+                    <p className="text-primary font-bold text-sm mb-2">
+                      {formatPrice(product.originalPrice)}
+                    </p>
+                    <Button
+                      onClick={(e) => handleAddToCart(e, product)}
+                      className="w-full gap-1 text-xs"
+                      size="sm"
+                      variant="outline"
+                    >
+                      <ShoppingCart className="w-3 h-3" />
+                      Tambah
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-base-content/50">
+              <p>Belum ada produk tersedia.</p>
+            </div>
+          )}
         </div>
       </section>
     </div>

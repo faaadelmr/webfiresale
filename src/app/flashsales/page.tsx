@@ -355,15 +355,27 @@ export default function FlashSalePage() {
                             </div>
                         </div>
 
-                        {/* Center Column (Image) */}
+                        {/* Center Column (Image with 3D Hover Effect) */}
                         <div className="relative flex flex-col items-center order-1 md:order-2 lg:col-span-1">
-                            <div className="relative aspect-square w-full max-w-[280px] sm:max-w-sm">
-                                <Image
-                                    src={product.image || '/placeholder.png'}
-                                    alt={product.name}
-                                    fill
-                                    className="object-contain drop-shadow-2xl"
-                                />
+                            <div className="hover-3d">
+                                <figure className="w-60 sm:w-72 md:w-80 rounded-2xl overflow-hidden">
+                                    <Image
+                                        src={product.image || '/placeholder.png'}
+                                        alt={product.name}
+                                        width={320}
+                                        height={320}
+                                        className="w-full h-auto object-contain drop-shadow-2xl"
+                                    />
+                                </figure>
+                                {/* 8 empty divs needed for the 3D effect */}
+                                <div></div>
+                                <div></div>
+                                <div></div>
+                                <div></div>
+                                <div></div>
+                                <div></div>
+                                <div></div>
+                                <div></div>
                             </div>
                         </div>
 

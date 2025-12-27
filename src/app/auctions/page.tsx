@@ -148,24 +148,36 @@ export default function AuctionsPage() {
                                 {auctions.map((auction, index) => (
                                     <CarouselItem key={auction.id} className="pl-4 basis-full">
                                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                                            {/* Product Image */}
+                                            {/* Product Image with 3D Hover Effect */}
                                             <div className="relative h-[400px] md:h-[500px] w-full flex justify-center items-center">
-                                                <div className="relative w-[80%] h-[80%]">
-                                                    <Image
-                                                        src={auction.product.image || '/placeholder.png'}
-                                                        alt={auction.product.name}
-                                                        fill
-                                                        className={cn("object-contain", isAuctionEnded(auction) && "opacity-50 grayscale")}
-                                                    />
-                                                    {/* SELESAI Stamp for ended auctions */}
-                                                    {isAuctionEnded(auction) && (
-                                                        <div className="absolute inset-0 flex items-center justify-center">
-                                                            <div className="transform -rotate-12 border-4 border-error px-6 py-2 rounded-lg">
-                                                                <span className="text-4xl md:text-6xl font-bold text-error tracking-wider">SELESAI</span>
-                                                            </div>
-                                                        </div>
-                                                    )}
+                                                <div className="hover-3d">
+                                                    <figure className="w-60 md:w-80 rounded-2xl overflow-hidden">
+                                                        <Image
+                                                            src={auction.product.image || '/placeholder.png'}
+                                                            alt={auction.product.name}
+                                                            width={320}
+                                                            height={400}
+                                                            className={cn("w-full h-auto object-contain", isAuctionEnded(auction) && "opacity-50 grayscale")}
+                                                        />
+                                                    </figure>
+                                                    {/* 8 empty divs needed for the 3D effect */}
+                                                    <div></div>
+                                                    <div></div>
+                                                    <div></div>
+                                                    <div></div>
+                                                    <div></div>
+                                                    <div></div>
+                                                    <div></div>
+                                                    <div></div>
                                                 </div>
+                                                {/* SELESAI Stamp for ended auctions */}
+                                                {isAuctionEnded(auction) && (
+                                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                        <div className="transform -rotate-12 border-4 border-error px-6 py-2 rounded-lg">
+                                                            <span className="text-4xl md:text-6xl font-bold text-error tracking-wider">SELESAI</span>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
 
                                             {/* Product Details */}
