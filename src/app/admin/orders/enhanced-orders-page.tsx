@@ -38,7 +38,7 @@ import { formatPrice, formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { Order, RefundDetails, OrderStatus } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, UploadCloud, CheckCircle, Printer, Search, FileText, XCircle } from "lucide-react";
+import { Eye, UploadCloud, CheckCircle, Printer, Search, FileText, XCircle, RefreshCw } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Textarea } from "@/components/ui/textarea";
@@ -651,28 +651,34 @@ export default function OrdersPage() {
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]); // For bulk operations
   const [isBulkStatusDialogOpen, setIsBulkStatusDialogOpen] = useState(false);
   const [newStatus, setNewStatus] = useState<OrderStatus | "">("");
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const { toast } = useToast();
 
-  useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const response = await fetch('/api/orders');
-        if (!response.ok) throw new Error('Failed to fetch orders');
-        const data = await response.json();
-        setOrders(data);
-      } catch (error) {
-        console.error("Error fetching orders:", error);
-        toast({
-          title: "Gagal Memuat Pesanan",
-          description: "Terjadi kesalahan saat memuat data pesanan.",
-          variant: "destructive"
-        });
-      }
-    };
+  const fetchOrders = async () => {
+    try {
+      setIsRefreshing(true);
+      const response = await fetch('/api/orders');
+      if (!response.ok) throw new Error('Failed to fetch orders');
+      const data = await response.json();
+      setOrders(data);
+      setLastUpdated(new Date());
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
-    fetchOrders();
-  }, [toast]);
+  useEffect(() => {
+    fetchOrders(); // Initial fetch
+
+    // Auto-refresh every 15 seconds
+    const intervalId = setInterval(fetchOrders, 15000);
+
+    return () => clearInterval(intervalId);
+  }, []); // Remove toast dependency to avoid re-renders
 
   // Derived state for tabs
   const pendingOrders = orders.filter(o => o.status === "Pending");
@@ -850,19 +856,35 @@ export default function OrdersPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Daftar Pesanan</h1>
         </div>
-        <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-white p-4 rounded-lg shadow-sm border border-gray-100 mb-6">
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
-            type="search"
-            placeholder="Cari order ID, pelanggan, email, telepon..."
-            className="pl-8 w-full md:w-80"
+            placeholder="Cari Order ID, Nama, Email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
           />
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div className="text-xs text-gray-500 hidden md:block">
+            Update: {lastUpdated.toLocaleTimeString()}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchOrders}
+            disabled={isRefreshing}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
         </div>
       </div>
 
-      {/* Bulk Operations Bar */}
       {selectedOrders.length > 0 && (
         <div className="bg-blue-50 border rounded-lg p-4 mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
