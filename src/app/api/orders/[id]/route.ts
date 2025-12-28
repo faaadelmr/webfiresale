@@ -64,6 +64,7 @@ export async function GET(
           }
         },
         refundDetails: true,
+        voucher: true, // Include voucher to get code
       },
     });
 
@@ -144,6 +145,9 @@ export async function GET(
       shippingName: order.shippingName || undefined,
       refundDetails: refundDetails,
       expiresAt: order.expiresAt || undefined,
+      voucherId: order.voucherId || undefined,
+      voucherCode: order.voucher?.code || undefined,
+      discount: order.discount ? Number(order.discount) : undefined,
     };
 
     return new Response(JSON.stringify(orderResponse), {
@@ -196,12 +200,21 @@ export async function PATCH(
     const userId = session.user.id;
 
     // Verify the user has permission to update this order
-    const order = await prisma.order.findFirst({
-      where: {
-        id,
-        userId
-      }
-    });
+    let order;
+    const isAdmin = session.user.role === 'admin' || session.user.role === 'superadmin';
+
+    if (isAdmin) {
+      order = await prisma.order.findUnique({
+        where: { id }
+      });
+    } else {
+      order = await prisma.order.findFirst({
+        where: {
+          id,
+          userId
+        }
+      });
+    }
 
     if (!order) {
       return new Response(JSON.stringify({ message: 'Order not found or unauthorized' }), {
@@ -213,19 +226,86 @@ export async function PATCH(
     const requestBody = await request.json();
     const { status, refundDetails, paymentProof, shippingCode, shippingName } = requestBody;
 
+    // Helper to transform Prisma order to Frontend Order type
+    const transformOrder = (rawOrder: any) => {
+      const orderItems = rawOrder.orderItems.map((item: any) => ({
+        product: {
+          id: item.product.id,
+          name: item.product.name,
+          description: item.product.description,
+          image: item.product.image,
+          originalPrice: Number(item.product.originalPrice),
+          quantity: item.product.quantityAvailable,
+          weight: item.product.weight,
+          flashSalePrice: Number(item.price),
+          hasReviewed: false, // Default for updated order view
+        },
+        quantity: item.quantity,
+      }));
+
+      let formattedRefundDetails = undefined;
+      if (rawOrder.refundDetails && rawOrder.refundDetails.length > 0) {
+        const refund = rawOrder.refundDetails[0];
+        formattedRefundDetails = {
+          reason: refund.reason,
+          processedDate: refund.processedDate,
+          bankName: refund.bankName || undefined,
+          accountNumber: refund.accountNumber || undefined,
+          accountName: refund.accountName || undefined,
+          refundedDate: refund.refundedDate || undefined,
+          refundProof: refund.refundProof || undefined,
+        };
+      }
+
+      const enrichedAddress = enrichAddressWithNames(rawOrder.address);
+      const address: any = {
+        id: enrichedAddress.id,
+        fullName: enrichedAddress.name,
+        phone: enrichedAddress.phone,
+        street: enrichedAddress.street,
+        postalCode: enrichedAddress.postalCode,
+        rtRwBlock: enrichedAddress.rtRwBlock,
+        label: enrichedAddress.label as 'Rumah' | 'Kantor' | 'Apartemen',
+        notes: enrichedAddress.notes || undefined,
+        provinceId: enrichedAddress.provinceId,
+        cityId: enrichedAddress.cityId,
+        districtId: enrichedAddress.districtId,
+        villageId: enrichedAddress.villageId,
+        province: enrichedAddress.province,
+        city: enrichedAddress.city,
+        district: enrichedAddress.district,
+        village: enrichedAddress.village,
+      };
+
+      return {
+        id: rawOrder.id,
+        customerName: rawOrder.address.name,
+        customerEmail: '', // Cannot fetch user email easily here without extra query, acceptable for update response
+        customerPhone: rawOrder.address.phone,
+        date: rawOrder.createdAt,
+        status: rawOrder.status as any,
+        total: Number(rawOrder.totalAmount),
+        items: orderItems,
+        address: address,
+        shippingCity: rawOrder.shippingCity || enrichedAddress.city || undefined,
+        shippingCost: rawOrder.shippingCost ? Number(rawOrder.shippingCost) : undefined,
+        paymentProof: rawOrder.paymentProof || undefined,
+        shippingCode: rawOrder.shippingCode || undefined,
+        shippingName: rawOrder.shippingName || undefined,
+        refundDetails: formattedRefundDetails,
+        expiresAt: rawOrder.expiresAt || undefined,
+      };
+    };
+
     // If updating refund details (this logic is complex so keep it separate)
     if (refundDetails) {
       // Create or update refund details
-      let updatedRefundDetails;
-
-      // Check if refund details already exist for this order
       const existingRefundDetails = await prisma.refundDetails.findFirst({
         where: { orderId: id }
       });
 
       if (existingRefundDetails) {
-        // Update existing refund details
-        updatedRefundDetails = await prisma.refundDetails.update({
+        await prisma.refundDetails.update({
           where: { id: existingRefundDetails.id },
           data: {
             reason: refundDetails.reason,
@@ -236,8 +316,7 @@ export async function PATCH(
           }
         });
       } else {
-        // Create new refund details
-        updatedRefundDetails = await prisma.refundDetails.create({
+        await prisma.refundDetails.create({
           data: {
             orderId: id,
             reason: refundDetails.reason,
@@ -249,20 +328,22 @@ export async function PATCH(
         });
       }
 
-      // Update order status to 'Refund Processing'
-      const updatedOrder = await prisma.order.update({
+      // Update order status to 'Refund Processing' and return full object
+      const rawUpdatedOrder = await prisma.order.update({
         where: { id },
         data: {
           status: 'Refund Processing',
         },
         include: {
+          address: true,
+          orderItems: { include: { product: true } },
           refundDetails: true
         }
       });
 
       return new Response(JSON.stringify({
         message: 'Refund details updated successfully',
-        order: updatedOrder
+        order: transformOrder(rawUpdatedOrder)
       }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -272,7 +353,7 @@ export async function PATCH(
     // If updating status, payment proof, or shipping details
     if (status || paymentProof !== undefined || shippingCode !== undefined || shippingName !== undefined) {
       // Validate status transitions for customers (non-admin users can only make certain transitions)
-      if (status) {
+      if (status && !isAdmin) {
         const allowedCustomerTransitions: Record<string, string[]> = {
           'Pending': ['Waiting for Confirmation', 'Cancelled'],
           'Waiting for Confirmation': ['Cancelled'],
@@ -351,15 +432,20 @@ export async function PATCH(
         });
       }
 
-      // Update the order
-      const updatedOrder = await prisma.order.update({
+      // Update the order and fetch relations
+      const rawUpdatedOrder = await prisma.order.update({
         where: { id },
-        data: updateData
+        data: updateData,
+        include: {
+          address: true,
+          orderItems: { include: { product: true } },
+          refundDetails: true
+        }
       });
 
       return new Response(JSON.stringify({
         message: 'Order updated successfully',
-        order: updatedOrder
+        order: transformOrder(rawUpdatedOrder)
       }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },

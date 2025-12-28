@@ -32,6 +32,7 @@ model User {
   bids         Bid[]
   cart         Cart?    // One-to-one relation with Cart (user can have only one cart)
   reviews      Review[]
+  notificationReads NotificationRead[]
 }
 
 model Address {
@@ -131,12 +132,15 @@ model Order {
   shippingCost    Decimal?
   shippingCity    String?
   addressId       String
+  voucherId       String?      // Applied voucher reference
+  discount        Decimal?     @default(0) // Discount amount from voucher
   expiresAt       DateTime?    // When the order expires if not paid
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
   // Relations
   user            User         @relation(fields: [userId], references: [id], onDelete: Restrict)
   address         Address      @relation(fields: [addressId], references: [id], onDelete: Restrict)
+  voucher         Voucher?     @relation(fields: [voucherId], references: [id], onDelete: SetNull)
   orderItems      OrderItem[]
   refundDetails   RefundDetails[]
 }
@@ -213,6 +217,9 @@ model GeneralSettings {
   theme           String   @default("light") // Global theme setting
   heroTagline     String?  // Main hero tagline on homepage
   heroSubtitle    String?  // Hero subtitle/description on homepage
+  bankName        String?  // Bank name for payments
+  accountNumber   String?  // Bank account number
+  accountName     String?  // Bank account holder name
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -244,4 +251,52 @@ model StockReservation {
   expiresAt     DateTime  // When the reservation expires
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+}
+
+model NotificationRead {
+  id              String   @id @default(cuid())
+  userId          String
+  notificationId  String   // The generated ID (e.g., "order-status-123")
+  readAt          DateTime @default(now())
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, notificationId]) // Prevent duplicate reads
+}
+
+// Voucher/Coupon system
+model Voucher {
+  id                String          @id @default(cuid())
+  code              String          @unique
+  description       String?
+  discountType      String          // "PERCENTAGE", "FIXED_AMOUNT", "FREE_SHIPPING"
+  discountValue     Decimal?        // Percentage (0-100) or fixed amount in Rupiah
+  minPurchase       Decimal?        // Minimum purchase amount required
+  maxDiscount       Decimal?        // Maximum discount amount (for percentage)
+  usageLimit        Int?            // Total number of times voucher can be used
+  usagePerUser      Int?            // Max uses per user
+  startDate         DateTime
+  endDate           DateTime
+  isActive          Boolean         @default(true)
+  flashSaleOnly     Boolean         @default(false)
+  auctionOnly       Boolean         @default(false)
+  regularOnly       Boolean         @default(false)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  
+  // Relations
+  voucherUsages     VoucherUsage[]
+  orders            Order[]
+}
+
+// Track voucher usage by users
+model VoucherUsage {
+  id          String   @id @default(cuid())
+  voucherId   String
+  userId      String
+  orderId     String?
+  usedAt      DateTime @default(now())
+  
+  // Relations
+  voucher     Voucher  @relation(fields: [voucherId], references: [id], onDelete: Cascade)
 }

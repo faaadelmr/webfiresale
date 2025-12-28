@@ -4,6 +4,7 @@ import { ThemeProvider } from '@/context/ThemeContext';
 import SessionProviderWrapper from '@/components/SessionProviderWrapper';
 import { DeveloperEasterEgg } from '@/components/developer-easter-egg';
 import { ReactNode } from 'react';
+import { Toaster } from "@/components/ui/toaster";
 import { Header } from '@/components/header';
 import { usePathname } from 'next/navigation';
 
@@ -35,6 +36,7 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
             <CartProvider>
               <DeveloperEasterEgg />
               <LayoutContent>{children}</LayoutContent>
+              <Toaster />
             </CartProvider>
           </ThemeProvider>
         </SessionProviderWrapper>

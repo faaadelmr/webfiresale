@@ -2,7 +2,6 @@
 "use client";
 
 import { useToast } from "@/hooks/use-toast";
-import { getSavedAddresses, saveAddresses } from "@/lib/utils";
 import type { AddressDetails, Province, City, District, Village } from "@/lib/types";
 import { useEffect, useState, useMemo, useRef } from "react";
 import { getProvinces, getCitiesByProvince, getDistrictsByCity, getVillagesByDistrict } from "@/lib/regions";
@@ -11,91 +10,91 @@ import { useSession } from "next-auth/react";
 
 // Custom hook to detect clicks outside a ref
 const useOutsideClick = (ref: React.RefObject<HTMLDivElement | null>, callback: () => void) => {
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (ref.current && !ref.current.contains(event.target as Node)) {
-                callback();
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-    }, [ref, callback]);
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        callback();
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [ref, callback]);
 };
 
 // Searchable Dropdown Component
 const SearchableDropdown = ({
-    options,
-    value,
-    onChange,
-    placeholder,
-    disabled = false,
-    error
+  options,
+  value,
+  onChange,
+  placeholder,
+  disabled = false,
+  error
 }: {
-    options: { id: string; name: string }[];
-    value: string;
-    onChange: (id: string) => void;
-    placeholder: string;
-    disabled?: boolean;
-    error?: boolean;
+  options: { id: string; name: string }[];
+  value: string;
+  onChange: (id: string) => void;
+  placeholder: string;
+  disabled?: boolean;
+  error?: boolean;
 }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const [searchTerm, setSearchTerm] = useState("");
-    const dropdownRef = useRef<HTMLDivElement>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-    useOutsideClick(dropdownRef, () => setIsOpen(false));
+  useOutsideClick(dropdownRef, () => setIsOpen(false));
 
-    const selectedOption = useMemo(() => options.find(opt => opt.id === value), [options, value]);
+  const selectedOption = useMemo(() => options.find(opt => opt.id === value), [options, value]);
 
-    const filteredOptions = useMemo(() => 
-        options.filter(opt => opt.name.toLowerCase().includes(searchTerm.toLowerCase())),
-        [options, searchTerm]
-    );
+  const filteredOptions = useMemo(() =>
+    options.filter(opt => opt.name.toLowerCase().includes(searchTerm.toLowerCase())),
+    [options, searchTerm]
+  );
 
-    const handleSelect = (id: string) => {
-        onChange(id);
-        setSearchTerm("");
-        setIsOpen(false);
-    };
+  const handleSelect = (id: string) => {
+    onChange(id);
+    setSearchTerm("");
+    setIsOpen(false);
+  };
 
-    return (
-        <div className="relative" ref={dropdownRef}>
-            <div 
-                className={`input input-bordered w-full flex items-center justify-between ${disabled ? 'input-disabled' : 'cursor-pointer'} ${error ? 'input-error' : ''}`}
-                onClick={() => !disabled && setIsOpen(!isOpen)}
-            >
-                <span>{selectedOption?.name || placeholder}</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-            </div>
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <div
+        className={`input input-bordered w-full flex items-center justify-between ${disabled ? 'input-disabled' : 'cursor-pointer'} ${error ? 'input-error' : ''}`}
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+      >
+        <span>{selectedOption?.name || placeholder}</span>
+        <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </div>
 
-            {isOpen && !disabled && (
-                <div className="absolute z-10 w-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    <div className="p-2">
-                        <input
-                            type="text"
-                            placeholder="Cari..."
-                            className="input input-sm input-bordered w-full"
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                            autoFocus
-                        />
-                    </div>
-                    <ul className="menu p-2">
-                        {filteredOptions.length > 0 ? (
-                            filteredOptions.map(opt => (
-                                <li key={opt.id} onClick={() => handleSelect(opt.id)}>
-                                    <a>{opt.name}</a>
-                                </li>
-                            ))
-                        ) : (
-                            <li className="menu-title"><span>Tidak ditemukan</span></li>
-                        )}
-                    </ul>
-                </div>
+      {isOpen && !disabled && (
+        <div className="absolute z-10 w-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+          <div className="p-2">
+            <input
+              type="text"
+              placeholder="Cari..."
+              className="input input-sm input-bordered w-full"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <ul className="menu p-2">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map(opt => (
+                <li key={opt.id} onClick={() => handleSelect(opt.id)}>
+                  <a>{opt.name}</a>
+                </li>
+              ))
+            ) : (
+              <li className="menu-title"><span>Tidak ditemukan</span></li>
             )}
+          </ul>
         </div>
-    );
+      )}
+    </div>
+  );
 };
 
 
@@ -243,7 +242,7 @@ export function BuyerForm({ onAddressSelect }: { onAddressSelect: (address: Addr
     const selected = savedAddresses.find(addr => addr.id === addressId);
     onAddressSelect(selected || null);
   };
-  
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-24">
@@ -253,40 +252,40 @@ export function BuyerForm({ onAddressSelect }: { onAddressSelect: (address: Addr
   }
 
   if (savedAddresses.length > 0 && !showAddressForm) {
-      return (
-        <div className="space-y-4">
-            <div className="space-y-3">
-              {savedAddresses.map(addr => (
-                  <label key={addr.id} className="p-4 border rounded-lg flex items-start gap-4 cursor-pointer has-[:checked]:bg-primary/10 has-[:checked]:border-primary">
-                      <input
-                          type="radio"
-                          name="selectedAddress"
-                          value={addr.id}
-                          checked={selectedAddressId === addr.id}
-                          onChange={handleAddressSelection}
-                          className="radio radio-primary mt-1"
-                      />
-                      <div>
-                          <p className="font-semibold">{addr.fullName} <span className="badge badge-outline ml-2">{addr.label}</span></p>
-                          <p className="text-sm text-base-content/70">{addr.phone}</p>
-                          <p className="text-sm text-base-content/70">{`${addr.street}, ${addr.village}, ${addr.district}`}</p>
-                          <p className="text-sm text-base-content/70">{`${addr.city}, ${addr.province}, ${addr.postalCode}`}</p>
-                      </div>
-                  </label>
-              ))}
-            </div>
-            <button
-              className="btn btn-outline w-full"
-              onClick={() => {
-                setShowAddressForm(true);
-                setSelectedAddressId(null);
-                onAddressSelect(null);
-              }}
-            >
-              + Tambah Alamat Baru
-            </button>
+    return (
+      <div className="space-y-4">
+        <div className="space-y-3">
+          {savedAddresses.map(addr => (
+            <label key={addr.id} className="p-4 border rounded-lg flex items-start gap-4 cursor-pointer has-[:checked]:bg-primary/10 has-[:checked]:border-primary">
+              <input
+                type="radio"
+                name="selectedAddress"
+                value={addr.id}
+                checked={selectedAddressId === addr.id}
+                onChange={handleAddressSelection}
+                className="radio radio-primary mt-1"
+              />
+              <div>
+                <p className="font-semibold">{addr.fullName} <span className="badge badge-outline ml-2">{addr.label}</span></p>
+                <p className="text-sm text-base-content/70">{addr.phone}</p>
+                <p className="text-sm text-base-content/70">{`${addr.street}, ${addr.village}, ${addr.district}`}</p>
+                <p className="text-sm text-base-content/70">{`${addr.city}, ${addr.province}, ${addr.postalCode}`}</p>
+              </div>
+            </label>
+          ))}
         </div>
-      )
+        <button
+          className="btn btn-outline w-full"
+          onClick={() => {
+            setShowAddressForm(true);
+            setSelectedAddressId(null);
+            onAddressSelect(null);
+          }}
+        >
+          + Tambah Alamat Baru
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -365,39 +364,22 @@ export function BuyerForm({ onAddressSelect }: { onAddressSelect: (address: Addr
               onAddressSelect(transformedCreatedAddress);
             }
             setShowAddressForm(false);
-            toast({ title: "Alamat Disimpan", description: "Alamat baru Anda telah berhasil disimpan."});
+            toast({ title: "Alamat Disimpan", description: "Alamat baru Anda telah berhasil disimpan." });
           } else {
-            // Fallback to localStorage if API fails
-            const isFirstAddress = savedAddresses.length === 0;
-            const addressToSave = { ...addressData, isPrimary: isFirstAddress };
-            const updatedAddresses = [...savedAddresses, addressToSave];
-            saveAddresses(updatedAddresses);
-            setSavedAddresses(updatedAddresses);
-            setSelectedAddressId(addressToSave.id);
-            setShowAddressForm(false);
-            onAddressSelect(addressToSave);
-            toast({ title: "Alamat Disimpan", description: "Alamat baru Anda telah berhasil disimpan (lokal)."});
+            const errorData = await response.json().catch(() => ({}));
+            toast({
+              title: "Gagal Menyimpan Alamat",
+              description: errorData.message || "Gagal menyimpan alamat ke server.",
+              variant: 'destructive'
+            });
           }
         } catch (error) {
           console.error('Error saving address:', error);
-          // Fallback to localStorage on error
-          const isFirstAddress = savedAddresses.length === 0;
-          // For localStorage, keep the addressData format as it's used in other parts of the app
-          const addressToSave = { ...addressData, isPrimary: isFirstAddress };
-          const updatedAddresses = [...savedAddresses, addressToSave];
-          saveAddresses(updatedAddresses);
-          // Transform the saved address to maintain consistency
-          const transformedAddresses = updatedAddresses.map(addr => ({
-            ...addr,
-            isPrimary: addr.isPrimary,
-            fullName: addr.fullName,
-            province: addr.province,
-          }));
-          setSavedAddresses(transformedAddresses);
-          setSelectedAddressId(addressToSave.id);
-          setShowAddressForm(false);
-          onAddressSelect(addressToSave);
-          toast({ title: "Alamat Disimpan", description: "Alamat baru Anda telah berhasil disimpan (lokal)."});
+          toast({
+            title: "Error",
+            description: "Terjadi kesalahan saat menghubungi server.",
+            variant: 'destructive'
+          });
         }
       }}
     />
@@ -406,227 +388,227 @@ export function BuyerForm({ onAddressSelect }: { onAddressSelect: (address: Addr
 
 
 export function AddressForm({ onSave, initialData, onCancel }: {
-    onSave: (address: AddressDetails) => void;
-    initialData?: Partial<AddressDetails>;
-    onCancel?: () => void;
+  onSave: (address: AddressDetails) => void;
+  initialData?: Partial<AddressDetails>;
+  onCancel?: () => void;
 }) {
-    const { toast } = useToast();
-    const [formData, setFormData] = useState({
-      id: initialData?.id || `addr_${Date.now()}`,
-      fullName: initialData?.fullName || "",
-      phone: initialData?.phone || "",
-      provinceId: initialData?.provinceId || "",
-      cityId: initialData?.cityId || "",
-      districtId: initialData?.districtId || "",
-      villageId: initialData?.villageId || "",
-      street: initialData?.street || "",
-      postalCode: initialData?.postalCode || "",
-      rtRwBlock: initialData?.rtRwBlock || "",
-      label: initialData?.label || "Rumah" as AddressDetails['label'],
-      notes: initialData?.notes || "",
-      isPrimary: initialData?.isPrimary || false,
+  const { toast } = useToast();
+  const [formData, setFormData] = useState({
+    id: initialData?.id || `addr_${Date.now()}`,
+    fullName: initialData?.fullName || "",
+    phone: initialData?.phone || "",
+    provinceId: initialData?.provinceId || "",
+    cityId: initialData?.cityId || "",
+    districtId: initialData?.districtId || "",
+    villageId: initialData?.villageId || "",
+    street: initialData?.street || "",
+    postalCode: initialData?.postalCode || "",
+    rtRwBlock: initialData?.rtRwBlock || "",
+    label: initialData?.label || "Rumah" as AddressDetails['label'],
+    notes: initialData?.notes || "",
+    isPrimary: initialData?.isPrimary || false,
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const provinces = useMemo(() => getProvinces(), []);
+  const cities = useMemo(() => getCitiesByProvince(formData.provinceId), [formData.provinceId]);
+  const districts = useMemo(() => getDistrictsByCity(formData.cityId), [formData.cityId]);
+  const villages = useMemo(() => getVillagesByDistrict(formData.districtId), [formData.districtId]);
+
+  const validate = () => {
+    const newErrors: Record<string, string> = {};
+    if (formData.fullName.length < 2) newErrors.fullName = "Nama lengkap harus diisi.";
+    if (formData.phone.length < 10) newErrors.phone = "Nomor telepon tidak valid.";
+    if (!formData.provinceId) newErrors.provinceId = "Provinsi harus dipilih.";
+    if (!formData.cityId) newErrors.cityId = "Kota/Kabupaten harus dipilih.";
+    if (!formData.districtId) newErrors.districtId = "Kecamatan harus dipilih.";
+    if (!formData.villageId) newErrors.villageId = "Kelurahan/Desa harus dipilih.";
+    if (formData.street.length < 5) newErrors.street = "Nama jalan dan nomor rumah harus diisi.";
+    if (!/^\d{5}$/.test(formData.postalCode)) newErrors.postalCode = "Kodepos harus 5 digit angka.";
+    if (formData.rtRwBlock.length < 3) newErrors.rtRwBlock = "RT/RW atau blok harus diisi.";
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSaveAddress = () => {
+    if (!validate()) {
+      toast({ title: "Form Tidak Lengkap", description: "Mohon periksa kembali data alamat Anda.", variant: "destructive" });
+      return;
+    }
+
+    const selectedProvince = provinces.find(p => p.id === formData.provinceId);
+    const selectedCity = cities.find(c => c.id === formData.cityId);
+    const selectedDistrict = districts.find(d => d.id === formData.districtId);
+    const selectedVillage = villages.find(v => v.id === formData.villageId);
+
+    if (!selectedProvince || !selectedCity || !selectedDistrict || !selectedVillage) {
+      toast({ title: "Error", description: "Data wilayah tidak valid.", variant: "destructive" });
+      return;
+    }
+
+    // Split fullName into firstName and lastName for API compatibility
+    const nameParts = formData.fullName.split(' ');
+    const firstName = nameParts[0] || formData.fullName;
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+
+    const completeAddress: AddressDetails = {
+      ...formData,
+      province: selectedProvince.name,
+      city: selectedCity.name,
+      district: selectedDistrict.name,
+      village: selectedVillage.name,
+    };
+
+    onSave(completeAddress);
+  };
+
+  const handleRegionChange = (name: string, value: string) => {
+    const newFormData = { ...formData, [name]: value };
+
+    if (name === 'provinceId') {
+      newFormData.cityId = '';
+      newFormData.districtId = '';
+      newFormData.villageId = '';
+    } else if (name === 'cityId') {
+      newFormData.districtId = '';
+      newFormData.villageId = '';
+    } else if (name === 'districtId') {
+      newFormData.villageId = '';
+    }
+
+    setFormData(newFormData);
+
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    const checked = (e.target as HTMLInputElement).checked;
+
+    setFormData({
+      ...formData,
+      [name]: type === 'checkbox' ? checked : value
     });
-    const [errors, setErrors] = useState<Record<string, string>>({});
-    
-    const provinces = useMemo(() => getProvinces(), []);
-    const cities = useMemo(() => getCitiesByProvince(formData.provinceId), [formData.provinceId]);
-    const districts = useMemo(() => getDistrictsByCity(formData.cityId), [formData.cityId]);
-    const villages = useMemo(() => getVillagesByDistrict(formData.districtId), [formData.districtId]);
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
 
-    const validate = () => {
-      const newErrors: Record<string, string> = {};
-      if (formData.fullName.length < 2) newErrors.fullName = "Nama lengkap harus diisi.";
-      if (formData.phone.length < 10) newErrors.phone = "Nomor telepon tidak valid.";
-      if (!formData.provinceId) newErrors.provinceId = "Provinsi harus dipilih.";
-      if (!formData.cityId) newErrors.cityId = "Kota/Kabupaten harus dipilih.";
-      if (!formData.districtId) newErrors.districtId = "Kecamatan harus dipilih.";
-      if (!formData.villageId) newErrors.villageId = "Kelurahan/Desa harus dipilih.";
-      if (formData.street.length < 5) newErrors.street = "Nama jalan dan nomor rumah harus diisi.";
-      if (!/^\d{5}$/.test(formData.postalCode)) newErrors.postalCode = "Kodepos harus 5 digit angka.";
-      if (formData.rtRwBlock.length < 3) newErrors.rtRwBlock = "RT/RW atau blok harus diisi.";
-      setErrors(newErrors);
-      return Object.keys(newErrors).length === 0;
-    };
-  
-    const handleSaveAddress = () => {
-      if (!validate()) {
-        toast({ title: "Form Tidak Lengkap", description: "Mohon periksa kembali data alamat Anda.", variant: "destructive"});
-        return;
-      }
-      
-      const selectedProvince = provinces.find(p => p.id === formData.provinceId);
-      const selectedCity = cities.find(c => c.id === formData.cityId);
-      const selectedDistrict = districts.find(d => d.id === formData.districtId);
-      const selectedVillage = villages.find(v => v.id === formData.villageId);
 
-      if (!selectedProvince || !selectedCity || !selectedDistrict || !selectedVillage) {
-          toast({ title: "Error", description: "Data wilayah tidak valid.", variant: "destructive"});
-          return;
-      }
-  
-      // Split fullName into firstName and lastName for API compatibility
-      const nameParts = formData.fullName.split(' ');
-      const firstName = nameParts[0] || formData.fullName;
-      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
-
-      const completeAddress: AddressDetails = {
-          ...formData,
-          province: selectedProvince.name,
-          city: selectedCity.name,
-          district: selectedDistrict.name,
-          village: selectedVillage.name,
-      };
-
-      onSave(completeAddress);
-    };
-    
-    const handleRegionChange = (name: string, value: string) => {
-        const newFormData = { ...formData, [name]: value };
-
-        if (name === 'provinceId') {
-            newFormData.cityId = '';
-            newFormData.districtId = '';
-            newFormData.villageId = '';
-        } else if (name === 'cityId') {
-            newFormData.districtId = '';
-            newFormData.villageId = '';
-        } else if (name === 'districtId') {
-            newFormData.villageId = '';
-        }
-
-        setFormData(newFormData);
-
-        if (errors[name]) {
-            setErrors(prev => ({ ...prev, [name]: '' }));
-        }
-    };
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      const { name, value, type } = e.target;
-      const checked = (e.target as HTMLInputElement).checked;
-
-      setFormData({
-        ...formData,
-        [name]: type === 'checkbox' ? checked : value
-      });
-      if (errors[name]) {
-        setErrors(prev => ({ ...prev, [name]: '' }));
-      }
-    };
-
-  
-    return (
-      <div className="space-y-4">
-        <h3 className="font-semibold text-lg">Detail Penerima</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="label"><span className="label-text">Nama Lengkap Penerima</span></label>
-            <input type="text" name="fullName" value={formData.fullName} onChange={handleChange} placeholder="John Doe" className={`input input-bordered w-full ${errors.fullName ? 'input-error' : ''}`} />
-            {errors.fullName && <p className="text-error text-sm mt-1">{errors.fullName}</p>}
-          </div>
-          <div>
-            <label className="label"><span className="label-text">Nomor Telepon Penerima</span></label>
-            <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="081234567890" className={`input input-bordered w-full ${errors.phone ? 'input-error' : ''}`} />
-            {errors.phone && <p className="text-error text-sm mt-1">{errors.phone}</p>}
-          </div>
-        </div>
-  
-        <div className="divider"></div>
-        
-        <h3 className="font-semibold text-lg">Alamat Pengiriman</h3>
+  return (
+    <div className="space-y-4">
+      <h3 className="font-semibold text-lg">Detail Penerima</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-            <label className="label"><span className="label-text">Provinsi</span></label>
-            <SearchableDropdown
-                options={provinces}
-                value={formData.provinceId}
-                onChange={(value) => handleRegionChange('provinceId', value)}
-                placeholder="Pilih Provinsi"
-                error={!!errors.provinceId}
-            />
-            {errors.provinceId && <p className="text-error text-sm mt-1">{errors.provinceId}</p>}
-        </div>
-         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-                <label className="label"><span className="label-text">Kota/Kabupaten</span></label>
-                <SearchableDropdown
-                    options={cities}
-                    value={formData.cityId}
-                    onChange={(value) => handleRegionChange('cityId', value)}
-                    placeholder="Pilih Kota/Kabupaten"
-                    disabled={!formData.provinceId}
-                    error={!!errors.cityId}
-                />
-                 {errors.cityId && <p className="text-error text-sm mt-1">{errors.cityId}</p>}
-            </div>
-            <div>
-                <label className="label"><span className="label-text">Kecamatan</span></label>
-                 <SearchableDropdown
-                    options={districts}
-                    value={formData.districtId}
-                    onChange={(value) => handleRegionChange('districtId', value)}
-                    placeholder="Pilih Kecamatan"
-                    disabled={!formData.cityId}
-                    error={!!errors.districtId}
-                />
-                 {errors.districtId && <p className="text-error text-sm mt-1">{errors.districtId}</p>}
-            </div>
-        </div>
-         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-             <div>
-                <label className="label"><span className="label-text">Kelurahan/Desa</span></label>
-                <SearchableDropdown
-                    options={villages}
-                    value={formData.villageId}
-                    onChange={(value) => handleRegionChange('villageId', value)}
-                    placeholder="Pilih Kelurahan/Desa"
-                    disabled={!formData.districtId}
-                    error={!!errors.villageId}
-                />
-                {errors.villageId && <p className="text-error text-sm mt-1">{errors.villageId}</p>}
-            </div>
-            <div>
-                <label className="label"><span className="label-text">Kodepos</span></label>
-                <input type="text" name="postalCode" value={formData.postalCode} onChange={handleChange} placeholder="5 digit kodepos" className={`input input-bordered w-full ${errors.postalCode ? 'input-error' : ''}`} />
-                {errors.postalCode && <p className="text-error text-sm mt-1">{errors.postalCode}</p>}
-            </div>
+          <label className="label"><span className="label-text">Nama Lengkap Penerima</span></label>
+          <input type="text" name="fullName" value={formData.fullName} onChange={handleChange} placeholder="John Doe" className={`input input-bordered w-full ${errors.fullName ? 'input-error' : ''}`} />
+          {errors.fullName && <p className="text-error text-sm mt-1">{errors.fullName}</p>}
         </div>
         <div>
-          <label className="label"><span className="label-text">RT/RW atau No. Blok</span></label>
-          <input type="text" name="rtRwBlock" value={formData.rtRwBlock} onChange={handleChange} placeholder="RT 001/RW 002" className={`input input-bordered w-full ${errors.rtRwBlock ? 'input-error' : ''}`} />
-          {errors.rtRwBlock && <p className="text-error text-sm mt-1">{errors.rtRwBlock}</p>}
-        </div>
-        <div>
-          <label className="label"><span className="label-text">Nama Jalan & No. Rumah</span></label>
-          <textarea name="street" value={formData.street} onChange={handleChange} placeholder="Jl. Damai Sejahtera No. 12B" className={`textarea textarea-bordered w-full ${errors.street ? 'textarea-error' : ''}`} />
-          {errors.street && <p className="text-error text-sm mt-1">{errors.street}</p>}
-        </div>
-         <div>
-          <label className="label"><span className="label-text">Catatan untuk Kurir (Opsional)</span></label>
-          <textarea name="notes" value={formData.notes} onChange={handleChange} placeholder="Contoh: Pagar warna hitam" className="textarea textarea-bordered w-full" />
-        </div>
-        <div>
-          <label className="label"><span className="label-text">Simpan sebagai</span></label>
-          <div className="flex gap-4">
-              {(['Rumah', 'Kantor', 'Apartemen'] as const).map(label => (
-                  <div key={label} className="form-control">
-                      <label className="label cursor-pointer gap-2">
-                          <input type="radio" name="label" value={label} checked={formData.label === label} onChange={(e) => setFormData(p => ({...p, label: e.target.value as AddressDetails['label']}))} className="radio radio-primary"/>
-                          <span className="label-text">{label}</span> 
-                      </label>
-                  </div>
-              ))}
-          </div>
-        </div>
-         <div className="form-control">
-            <label className="label cursor-pointer">
-                <span className="label-text">Jadikan alamat utama</span>
-                <input type="checkbox" name="isPrimary" checked={formData.isPrimary} onChange={handleChange} className="checkbox checkbox-primary" />
-            </label>
-        </div>
-        <div className="flex justify-end gap-2 pt-4">
-            {onCancel && <button className="btn btn-ghost" type="button" onClick={onCancel}>Batal</button>}
-            <button className="btn btn-primary" type="button" onClick={handleSaveAddress}>Simpan Alamat</button>
+          <label className="label"><span className="label-text">Nomor Telepon Penerima</span></label>
+          <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="081234567890" className={`input input-bordered w-full ${errors.phone ? 'input-error' : ''}`} />
+          {errors.phone && <p className="text-error text-sm mt-1">{errors.phone}</p>}
         </div>
       </div>
-    );
+
+      <div className="divider"></div>
+
+      <h3 className="font-semibold text-lg">Alamat Pengiriman</h3>
+      <div>
+        <label className="label"><span className="label-text">Provinsi</span></label>
+        <SearchableDropdown
+          options={provinces}
+          value={formData.provinceId}
+          onChange={(value) => handleRegionChange('provinceId', value)}
+          placeholder="Pilih Provinsi"
+          error={!!errors.provinceId}
+        />
+        {errors.provinceId && <p className="text-error text-sm mt-1">{errors.provinceId}</p>}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="label"><span className="label-text">Kota/Kabupaten</span></label>
+          <SearchableDropdown
+            options={cities}
+            value={formData.cityId}
+            onChange={(value) => handleRegionChange('cityId', value)}
+            placeholder="Pilih Kota/Kabupaten"
+            disabled={!formData.provinceId}
+            error={!!errors.cityId}
+          />
+          {errors.cityId && <p className="text-error text-sm mt-1">{errors.cityId}</p>}
+        </div>
+        <div>
+          <label className="label"><span className="label-text">Kecamatan</span></label>
+          <SearchableDropdown
+            options={districts}
+            value={formData.districtId}
+            onChange={(value) => handleRegionChange('districtId', value)}
+            placeholder="Pilih Kecamatan"
+            disabled={!formData.cityId}
+            error={!!errors.districtId}
+          />
+          {errors.districtId && <p className="text-error text-sm mt-1">{errors.districtId}</p>}
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="label"><span className="label-text">Kelurahan/Desa</span></label>
+          <SearchableDropdown
+            options={villages}
+            value={formData.villageId}
+            onChange={(value) => handleRegionChange('villageId', value)}
+            placeholder="Pilih Kelurahan/Desa"
+            disabled={!formData.districtId}
+            error={!!errors.villageId}
+          />
+          {errors.villageId && <p className="text-error text-sm mt-1">{errors.villageId}</p>}
+        </div>
+        <div>
+          <label className="label"><span className="label-text">Kodepos</span></label>
+          <input type="text" name="postalCode" value={formData.postalCode} onChange={handleChange} placeholder="5 digit kodepos" className={`input input-bordered w-full ${errors.postalCode ? 'input-error' : ''}`} />
+          {errors.postalCode && <p className="text-error text-sm mt-1">{errors.postalCode}</p>}
+        </div>
+      </div>
+      <div>
+        <label className="label"><span className="label-text">RT/RW atau No. Blok</span></label>
+        <input type="text" name="rtRwBlock" value={formData.rtRwBlock} onChange={handleChange} placeholder="RT 001/RW 002" className={`input input-bordered w-full ${errors.rtRwBlock ? 'input-error' : ''}`} />
+        {errors.rtRwBlock && <p className="text-error text-sm mt-1">{errors.rtRwBlock}</p>}
+      </div>
+      <div>
+        <label className="label"><span className="label-text">Nama Jalan & No. Rumah</span></label>
+        <textarea name="street" value={formData.street} onChange={handleChange} placeholder="Jl. Damai Sejahtera No. 12B" className={`textarea textarea-bordered w-full ${errors.street ? 'textarea-error' : ''}`} />
+        {errors.street && <p className="text-error text-sm mt-1">{errors.street}</p>}
+      </div>
+      <div>
+        <label className="label"><span className="label-text">Catatan untuk Kurir (Opsional)</span></label>
+        <textarea name="notes" value={formData.notes} onChange={handleChange} placeholder="Contoh: Pagar warna hitam" className="textarea textarea-bordered w-full" />
+      </div>
+      <div>
+        <label className="label"><span className="label-text">Simpan sebagai</span></label>
+        <div className="flex gap-4">
+          {(['Rumah', 'Kantor', 'Apartemen'] as const).map(label => (
+            <div key={label} className="form-control">
+              <label className="label cursor-pointer gap-2">
+                <input type="radio" name="label" value={label} checked={formData.label === label} onChange={(e) => setFormData(p => ({ ...p, label: e.target.value as AddressDetails['label'] }))} className="radio radio-primary" />
+                <span className="label-text">{label}</span>
+              </label>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="form-control">
+        <label className="label cursor-pointer">
+          <span className="label-text">Jadikan alamat utama</span>
+          <input type="checkbox" name="isPrimary" checked={formData.isPrimary} onChange={handleChange} className="checkbox checkbox-primary" />
+        </label>
+      </div>
+      <div className="flex justify-end gap-2 pt-4">
+        {onCancel && <button className="btn btn-ghost" type="button" onClick={onCancel}>Batal</button>}
+        <button className="btn btn-primary" type="button" onClick={handleSaveAddress}>Simpan Alamat</button>
+      </div>
+    </div>
+  );
 }

@@ -30,6 +30,9 @@ export async function GET(request: NextRequest) {
             theme: settings.theme,
             heroTagline: settings.heroTagline,
             heroSubtitle: settings.heroSubtitle,
+            bankName: settings.bankName,
+            accountNumber: settings.accountNumber,
+            accountName: settings.accountName,
         }), {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
@@ -74,6 +77,9 @@ export async function PATCH(request: NextRequest) {
         if (data.theme !== undefined) updateData.theme = data.theme;
         if (data.heroTagline !== undefined) updateData.heroTagline = data.heroTagline;
         if (data.heroSubtitle !== undefined) updateData.heroSubtitle = data.heroSubtitle;
+        if (data.bankName !== undefined) updateData.bankName = data.bankName;
+        if (data.accountNumber !== undefined) updateData.accountNumber = data.accountNumber;
+        if (data.accountName !== undefined) updateData.accountName = data.accountName;
 
         if (settings) {
             // Update existing settings
@@ -93,6 +99,9 @@ export async function PATCH(request: NextRequest) {
                     businessLogoUrl: data.businessLogoUrl,
                     printSize: data.printSize ?? 'a4',
                     theme: data.theme ?? 'light',
+                    bankName: data.bankName,
+                    accountNumber: data.accountNumber,
+                    accountName: data.accountName,
                 },
             });
         }
@@ -113,6 +122,9 @@ export async function PATCH(request: NextRequest) {
                 theme: settings.theme,
                 heroTagline: settings.heroTagline,
                 heroSubtitle: settings.heroSubtitle,
+                bankName: settings.bankName,
+                accountNumber: settings.accountNumber,
+                accountName: settings.accountName,
             }
         }), {
             status: 200,

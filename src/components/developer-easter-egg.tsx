@@ -10,11 +10,13 @@ export function DeveloperEasterEgg() {
     const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
 
     const handleKeyDown = useCallback((event: KeyboardEvent) => {
+        if (!event.key) return;
         const key = event.key.toLowerCase();
         setPressedKeys(prev => new Set(prev).add(key));
     }, []);
 
     const handleKeyUp = useCallback((event: KeyboardEvent) => {
+        if (!event.key) return;
         const key = event.key.toLowerCase();
         setPressedKeys(prev => {
             const newSet = new Set(prev);

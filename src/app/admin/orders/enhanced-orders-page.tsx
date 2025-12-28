@@ -34,11 +34,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { mockOrders } from "@/lib/mock-data";
 import { formatPrice, formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { Order, RefundDetails, OrderStatus } from "@/lib/types";
-import { Eye, UploadCloud, CheckCircle, Printer, Search, FileText } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Eye, UploadCloud, CheckCircle, Printer, Search, FileText, XCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Textarea } from "@/components/ui/textarea";
@@ -438,12 +438,32 @@ function EnhancedOrderTable({
                     </Button>
                   </>
                 )}
-                {order.status === 'Refund Processing' && order.refundDetails?.bankName && (
-                  <div className="text-xs p-2 rounded-md bg-orange-100 border border-orange-200 w-max">
-                    <p className="font-semibold text-orange-800">Info Rekening</p>
-                    <p className="text-orange-700">Bank: {order.refundDetails.bankName}</p>
-                    <p className="text-orange-700">No. Rek: {order.refundDetails.accountNumber}</p>
-                    <p className="text-orange-700">A.N: {order.refundDetails.accountName}</p>
+                {(order.status === 'Refund Processing' || order.status === 'Refund Required' || order.status === 'Refund Rejected') && order.refundDetails && (
+                  <div className="text-xs p-2 rounded-md bg-orange-100 border border-orange-200 w-max space-y-1">
+                    <p className="font-semibold text-orange-800">Permintaan Pengembalian</p>
+                    <p className="text-orange-700 font-medium">Alasan:</p>
+                    <p className="text-orange-700 italic">"{order.refundDetails.reason || '-'}"</p>
+
+                    {order.refundDetails.refundProof && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-orange-700 hover:text-orange-800 hover:bg-orange-200 -ml-2 mt-1"
+                        onClick={() => setViewingProof(order.refundDetails!.refundProof!)}
+                      >
+                        <Eye className="mr-1 h-3 w-3" />
+                        Lihat Bukti Foto
+                      </Button>
+                    )}
+
+                    {order.refundDetails.bankName && (
+                      <div className="mt-2 pt-2 border-t border-orange-200/50">
+                        <p className="font-semibold text-orange-800">Info Rekening</p>
+                        <p className="text-orange-700">Bank: {order.refundDetails.bankName}</p>
+                        <p className="text-orange-700">No. Rek: {order.refundDetails.accountNumber}</p>
+                        <p className="text-orange-700">A.N: {order.refundDetails.accountName}</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </TableCell>
@@ -481,10 +501,16 @@ function EnhancedOrderTable({
                   </Button>
                 )}
                 {order.status === 'Refund Processing' && (
-                  <Button variant="default" size="sm" onClick={() => requestConfirmation(order.id, 'Cancelled', 'Konfirmasi Pengembalian Dana', `Apakah Anda sudah mentransfer pengembalian dana untuk pesanan #${order.id}? Pesanan akan ditandai sebagai "Cancelled".`)}>
-                    <CheckCircle className="mr-2 h-4 w-4" />
-                    Refund Selesai
-                  </Button>
+                  <div className="flex flex-col gap-2">
+                    <Button variant="default" size="sm" onClick={() => requestConfirmation(order.id, 'Cancelled', 'Konfirmasi Pengembalian Dana', `Apakah Anda sudah mentransfer pengembalian dana untuk pesanan #${order.id}? Pesanan akan ditandai sebagai "Cancelled" (Stok dikembalikan).`)}>
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      Refund Selesai
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={() => requestConfirmation(order.id, 'Refund Rejected', 'Tolak Pengembalian', `Apakah Anda yakin ingin menolak pengembalian dana ini? Status akan menjadi "Refund Rejected".`)}>
+                      <XCircle className="mr-2 h-4 w-4" />
+                      Tolak Refund
+                    </Button>
+                  </div>
                 )}
               </TableCell>
             </TableRow>
@@ -626,107 +652,113 @@ export default function OrdersPage() {
   const [isBulkStatusDialogOpen, setIsBulkStatusDialogOpen] = useState(false);
   const [newStatus, setNewStatus] = useState<OrderStatus | "">("");
 
-  // Separate state for each tab's orders
-  const [pendingOrders] = useState<Order[]>([]);
-  const [waitingForConfirmationOrders] = useState<Order[]>([]);
-  const [processingOrders] = useState<Order[]>([]);
-  const [shippedOrders] = useState<Order[]>([]);
-  const [deliveredOrders] = useState<Order[]>([]);
-  const [cancelledOrders] = useState<Order[]>([]);
-  const [refundOrders] = useState<Order[]>([]);
+  const { toast } = useToast();
 
   useEffect(() => {
-    const userOrders = JSON.parse(localStorage.getItem('userOrders') || '[]');
-    const allOrders = [...mockOrders, ...userOrders].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    setOrders(allOrders);
-
-    // Update the states for each tab
-    pendingOrders.length = 0;
-    waitingForConfirmationOrders.length = 0;
-    processingOrders.length = 0;
-    shippedOrders.length = 0;
-    deliveredOrders.length = 0;
-    cancelledOrders.length = 0;
-    refundOrders.length = 0;
-
-    pendingOrders.push(...allOrders.filter((order) => order.status === "Pending"));
-    waitingForConfirmationOrders.push(...allOrders.filter((order) => order.status === "Waiting for Confirmation" || order.status === 'Re-upload Required'));
-    processingOrders.push(...allOrders.filter((order) => order.status === "Processing"));
-    shippedOrders.push(...allOrders.filter((order) => order.status === "Shipped"));
-    deliveredOrders.push(...allOrders.filter((order) => order.status === "Delivered"));
-    cancelledOrders.push(...allOrders.filter((order) => order.status === "Cancelled"));
-    refundOrders.push(...allOrders.filter((order) => order.status === "Refund Required" || order.status === 'Refund Processing'));
-  }, []);
-
-  const updateOrderInStateAndStorage = (updatedOrder: Order) => {
-    // Update state
-    setOrders(prevOrders => prevOrders.map(o => o.id === updatedOrder.id ? updatedOrder : o));
-
-    // Update localStorage
-    const userOrders = JSON.parse(localStorage.getItem('userOrders') || '[]') as Order[];
-    const updatedUserOrders = userOrders.map(o => o.id === updatedOrder.id ? updatedOrder : o);
-    localStorage.setItem('userOrders', JSON.stringify(updatedUserOrders));
-  }
-
-  const handleUpdateStatus = (orderId: string, newStatus: Order['status']) => {
-    const orderToUpdate = orders.find(o => o.id === orderId);
-    if (orderToUpdate) {
-      const updatedOrder = { ...orderToUpdate, status: newStatus };
-      updateOrderInStateAndStorage(updatedOrder);
-    }
-  };
-
-  const handleCancelOrder = (orderId: string, refundDetails?: RefundDetails) => {
-    const orderToUpdate = orders.find(o => o.id === orderId);
-    if (orderToUpdate) {
-      // Restore product quantities
-      const storedProducts = JSON.parse(localStorage.getItem('products') || '[]');
-      if (storedProducts.length > 0) {
-        const updatedProducts = storedProducts.map((p: any) => {
-          const itemInOrder = orderToUpdate.items.find(item => item.product.id === p.id);
-          if (itemInOrder) {
-            return { ...p, quantityAvailable: p.quantityAvailable + itemInOrder.quantity };
-          }
-          return p;
+    const fetchOrders = async () => {
+      try {
+        const response = await fetch('/api/orders');
+        if (!response.ok) throw new Error('Failed to fetch orders');
+        const data = await response.json();
+        setOrders(data);
+      } catch (error) {
+        console.error("Error fetching orders:", error);
+        toast({
+          title: "Gagal Memuat Pesanan",
+          description: "Terjadi kesalahan saat memuat data pesanan.",
+          variant: "destructive"
         });
-        localStorage.setItem('products', JSON.stringify(updatedProducts));
       }
+    };
 
-      const newStatus = refundDetails ? 'Refund Required' : 'Cancelled';
+    fetchOrders();
+  }, [toast]);
 
-      const updatedOrder = {
-        ...orderToUpdate,
-        status: newStatus as Order['status'],
-        refundDetails: refundDetails
-      };
-      updateOrderInStateAndStorage(updatedOrder);
+  // Derived state for tabs
+  const pendingOrders = orders.filter(o => o.status === "Pending");
+  const waitingForConfirmationOrders = orders.filter(o => o.status === "Waiting for Confirmation" || o.status === 'Re-upload Required');
+  const processingOrders = orders.filter(o => o.status === "Processing");
+  const shippedOrders = orders.filter(o => o.status === "Shipped");
+  const deliveredOrders = orders.filter(o => o.status === "Delivered");
+  const cancelledOrders = orders.filter(o => o.status === "Cancelled");
+  const refundOrders = orders.filter(o => o.status === "Refund Required" || o.status === 'Refund Processing');
+
+  const updateOrderInState = (updatedOrder: Order) => {
+    setOrders(prevOrders => prevOrders.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+  };
+
+  const handleUpdateStatus = async (orderId: string, newStatus: Order['status']) => {
+    try {
+      const response = await fetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (!response.ok) throw new Error('Failed to update status');
+
+      const data = await response.json();
+      updateOrderInState(data.order);
+      toast({ title: "Status Diperbarui", description: `Pesanan #${orderId} diubah menjadi ${newStatus}` });
+    } catch (error) {
+      toast({ title: "Gagal Mengubah Status", description: "Terjadi kesalahan server.", variant: "destructive" });
     }
   };
 
-  const handleConfirmRefund = (orderId: string) => {
-    const orderToUpdate = orders.find(o => o.id === orderId);
-    if (orderToUpdate && orderToUpdate.refundDetails) {
-      const updatedOrder = {
-        ...orderToUpdate,
-        status: 'Cancelled' as const,
-        refundDetails: {
-          ...orderToUpdate.refundDetails,
-          refundedDate: new Date(),
-        }
-      };
-      updateOrderInStateAndStorage(updatedOrder);
+  const handleCancelOrder = async (orderId: string, refundDetails?: RefundDetails) => {
+    try {
+      const body: any = { status: refundDetails ? 'Refund Required' : 'Cancelled' };
+      if (refundDetails) body.refundDetails = refundDetails;
+
+      const response = await fetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (!response.ok) throw new Error('Failed to cancel order');
+
+      const data = await response.json();
+      updateOrderInState(data.order);
+      toast({ title: "Pesanan Dibatalkan", description: `Pesanan #${orderId} telah dibatalkan.` });
+    } catch (error) {
+      toast({ title: "Gagal Membatalkan", description: "Terjadi kesalahan server.", variant: "destructive" });
     }
   };
 
-  const handleAddShippingCode = (orderId: string, shippingCode: string) => {
-    const orderToUpdate = orders.find(o => o.id === orderId);
-    if (orderToUpdate) {
-      const updatedOrder = {
-        ...orderToUpdate,
-        status: 'Shipped' as const,
-        shippingCode: shippingCode
-      };
-      updateOrderInStateAndStorage(updatedOrder);
+  const handleConfirmRefund = async (orderId: string) => {
+    try {
+      const response = await fetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'Cancelled' }) // Confirming refund usually means moving to Cancelled (fully processed)
+      });
+
+      if (!response.ok) throw new Error('Failed to confirm refund');
+
+      const data = await response.json();
+      updateOrderInState(data.order);
+      toast({ title: "Refund Dikonfirmasi", description: "Pengembalian dana telah selesai." });
+    } catch (error) {
+      toast({ title: "Gagal Konfirmasi", description: "Terjadi kesalahan server.", variant: "destructive" });
+    }
+  };
+
+  const handleAddShippingCode = async (orderId: string, shippingCode: string, shippingName: string) => {
+    try {
+      const response = await fetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'Shipped', shippingCode: shippingCode, shippingName: shippingName })
+      });
+
+      if (!response.ok) throw new Error('Failed to add shipping code');
+
+      const data = await response.json();
+      updateOrderInState(data.order);
+      toast({ title: "Resi Ditambahkan", description: `Pesanan #${orderId} telah dikirim.` });
+    } catch (error) {
+      toast({ title: "Gagal Menambah Resi", description: "Terjadi kesalahan server.", variant: "destructive" });
     }
   };
 
@@ -784,18 +816,24 @@ export default function OrdersPage() {
   const confirmBulkStatusChange = () => {
     if (selectedOrders.length > 0 && newStatus) {
       // Update all selected orders
-      const updatedOrders = orders.map(order =>
-        selectedOrders.includes(order.id) ? { ...order, status: newStatus } : order
-      );
-
-      setOrders(updatedOrders);
-
-      // Update localStorage
-      const userOrders = JSON.parse(localStorage.getItem('userOrders') || '[]') as Order[];
-      const updatedUserOrders = userOrders.map(order =>
-        selectedOrders.includes(order.id) ? { ...order, status: newStatus } : order
-      );
-      localStorage.setItem('userOrders', JSON.stringify(updatedUserOrders));
+      // Update all selected orders via API
+      Promise.all(selectedOrders.map(id =>
+        fetch(`/api/orders/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus })
+        }).then(res => {
+          if (res.ok) return res.json();
+          return null;
+        })
+      )).then(results => {
+        const successfulUpdates = results.filter(r => r !== null).map(r => r.order);
+        setOrders(prev => prev.map(o => {
+          const updated = successfulUpdates.find((u: Order) => u.id === o.id);
+          return updated || o;
+        }));
+        toast({ title: "Batch Update Berhasil", description: `${successfulUpdates.length} pesanan diperbarui.` });
+      });
 
       setSelectedOrders([]);
       setIsBulkStatusDialogOpen(false);

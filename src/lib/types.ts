@@ -76,7 +76,9 @@ export type OrderStatus =
   | 'Cancelled'
   | 'Re-upload Required'
   | 'Refund Required'
-  | 'Refund Processing';
+  | 'Refund Required'
+  | 'Refund Processing'
+  | 'Refund Rejected';
 
 export type RefundDetails = {
   reason: string;
@@ -128,6 +130,39 @@ export type Order = {
   paymentProof?: string; // URL or identifier for the payment proof image
   refundDetails?: RefundDetails;
   expiresAt?: Date;
+  voucherId?: string;
+  voucherCode?: string; // For passing code during creation
+  discount?: number; // Discount amount applied
+};
+
+export type DiscountType = 'PERCENTAGE' | 'FIXED_AMOUNT' | 'FREE_SHIPPING';
+
+export type Voucher = {
+  id: string;
+  code: string;
+  description?: string;
+  discountType: DiscountType;
+  discountValue?: number;
+  minPurchase?: number;
+  maxDiscount?: number;
+  usageLimit?: number;
+  usagePerUser?: number;
+  startDate: Date | string;
+  endDate: Date | string;
+  isActive: boolean;
+  flashSaleOnly: boolean;
+  auctionOnly: boolean;
+  regularOnly: boolean;
+  usageCount?: number; // From relation aggregation
+  orderCount?: number; // From relation aggregation
+  statusText?: string;
+};
+
+export type VoucherValidationResult = {
+  valid: boolean;
+  message?: string;
+  voucher?: Voucher;
+  discount?: number;
 };
 
 export type ValidationResult = {

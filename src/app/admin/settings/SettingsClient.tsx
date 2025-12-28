@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import type { GeneralSettings, AccountSettings, BusinessAddress, PrintSize } from "@/lib/types";
-import { getGeneralSettingsFromStorage, saveGeneralSettingsToStorage, getAccountSettingsFromStorage, saveAccountSettingsToStorage } from "@/lib/utils";
 import { Banknote, Image as ImageIcon, Upload, ToggleRight, MapPin, LayoutTemplate } from "lucide-react";
 import Image from "next/image";
 import { mockRegions, getDistrictsByCity, getVillagesByDistrict, getAllCities } from "@/lib/regions";
@@ -120,6 +119,13 @@ export default function SettingsClient() {
             bannerImage: bannerImage || ''
           });
 
+          // Set account settings
+          setAccountSettings({
+            bankName: data.bankName || "",
+            accountNumber: data.accountNumber || "",
+            accountName: data.accountName || "",
+          });
+
           // Set business address if exists
           if (businessAddress) {
             setBusinessAddress(businessAddress);
@@ -155,11 +161,6 @@ export default function SettingsClient() {
     };
 
     loadSettings();
-
-    const loadedAccountSettings = getAccountSettingsFromStorage();
-    if (loadedAccountSettings) {
-      setAccountSettings(loadedAccountSettings);
-    }
   }, [toast]);
 
   const handleSaveClick = () => {
@@ -181,6 +182,9 @@ export default function SettingsClient() {
         theme: generalSettings.theme || 'light',
         heroTagline: generalSettings.heroTagline || null,
         heroSubtitle: generalSettings.heroSubtitle || null,
+        bankName: accountSettings.bankName,
+        accountNumber: accountSettings.accountNumber,
+        accountName: accountSettings.accountName,
       };
 
       const response = await fetch('/api/settings', {
@@ -194,8 +198,6 @@ export default function SettingsClient() {
       if (!response.ok) {
         throw new Error('Failed to save settings');
       }
-
-      saveAccountSettingsToStorage(accountSettings);
 
       toast({
         title: "✓ Pengaturan Berhasil Disimpan",
@@ -361,6 +363,21 @@ export default function SettingsClient() {
               </p>
             </div>
             <div className="p-6 space-y-4">
+              <div className="space-y-2">
+                <label className="label font-medium">
+                  <span className="label-text">Batas Waktu Pembayaran (Menit)</span>
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={generalSettings.paymentTimeLimit}
+                  onChange={(e) => setGeneralSettings({ ...generalSettings, paymentTimeLimit: parseInt(e.target.value) || 0 })}
+                  className="input input-bordered w-full"
+                />
+                <p className="text-xs text-base-content/60">
+                  Pesanan akan otomatis dibatalkan jika belum dibayar dalam waktu ini. (Contoh: 1440 untuk 24 jam)
+                </p>
+              </div>
               <div className="space-y-2">
                 <label className="label font-medium">
                   <span className="label-text">Nama Bank</span>

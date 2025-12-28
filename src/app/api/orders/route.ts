@@ -265,8 +265,108 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Validate voucher if provided
+    let voucherId: string | undefined;
+    let voucherDiscount = 0;
+
+    if (orderData.voucherId || (orderData as any).voucherCode) {
+      const voucherCode = (orderData as any).voucherCode;
+
+      // Find and validate voucher
+      const voucher = await prisma.voucher.findFirst({
+        where: {
+          OR: [
+            { id: orderData.voucherId || '' },
+            { code: voucherCode?.toUpperCase() || '' },
+          ],
+        },
+        include: {
+          _count: {
+            select: { voucherUsages: true },
+          },
+        },
+      });
+
+      if (voucher) {
+        // Validate voucher
+        const now = new Date();
+
+        if (!voucher.isActive) {
+          return new Response(JSON.stringify({ message: 'Voucher tidak aktif' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
+        if (voucher.startDate > now || voucher.endDate < now) {
+          return new Response(JSON.stringify({ message: 'Voucher tidak berlaku pada waktu ini' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
+        if (voucher.usageLimit && voucher._count.voucherUsages >= voucher.usageLimit) {
+          return new Response(JSON.stringify({ message: 'Voucher sudah mencapai batas penggunaan' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
+        if (voucher.usagePerUser) {
+          const userUsageCount = await prisma.voucherUsage.count({
+            where: {
+              voucherId: voucher.id,
+              userId: userId,
+            },
+          });
+
+          if (userUsageCount >= voucher.usagePerUser) {
+            return new Response(JSON.stringify({ message: 'Anda sudah mencapai batas penggunaan voucher ini' }), {
+              status: 400,
+              headers: { 'Content-Type': 'application/json' },
+            });
+          }
+        }
+
+        // Calculate discount
+        const cartTotal = orderData.items.reduce((sum, item) => sum + (item.product.flashSalePrice * item.quantity), 0);
+
+        if (voucher.minPurchase && cartTotal < parseFloat(voucher.minPurchase.toString())) {
+          return new Response(JSON.stringify({ message: `Minimum pembelian Rp ${parseFloat(voucher.minPurchase.toString()).toLocaleString('id-ID')}` }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
+        if (voucher.discountType === 'PERCENTAGE') {
+          const discountValue = parseFloat(voucher.discountValue?.toString() || '0');
+          voucherDiscount = (cartTotal * discountValue) / 100;
+
+          if (voucher.maxDiscount) {
+            const maxDiscount = parseFloat(voucher.maxDiscount.toString());
+            voucherDiscount = Math.min(voucherDiscount, maxDiscount);
+          }
+        } else if (voucher.discountType === 'FIXED_AMOUNT') {
+          voucherDiscount = parseFloat(voucher.discountValue?.toString() || '0');
+          voucherDiscount = Math.min(voucherDiscount, cartTotal);
+        } else if (voucher.discountType === 'FREE_SHIPPING') {
+          voucherDiscount = orderData.shippingCost || 0;
+          if (voucher.maxDiscount) {
+            const maxDiscount = parseFloat(voucher.maxDiscount.toString());
+            voucherDiscount = Math.min(voucherDiscount, maxDiscount);
+          }
+        }
+
+        voucherId = voucher.id;
+      }
+    }
+
     // Create order in database
     // Create order in database
+    const settings = await prisma.generalSettings.findFirst();
+    // paymentTimeLimit is in minutes per schema
+    const paymentDeadlineMinutes = settings?.paymentTimeLimit || 24 * 60; // Default to 24h if missing
+
     const createdOrder = await prisma.$transaction(async (tx) => {
       // Ensure address exists
       let addressId = orderData.address.id;
@@ -317,10 +417,23 @@ export async function POST(request: NextRequest) {
           },
           shippingCity: cityName, // Persist city name for shipping label
           shippingCost: orderData.shippingCost ? new Decimal(orderData.shippingCost) : null,
-          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours expiry
+          ...(voucherId ? { voucher: { connect: { id: voucherId } } } : {}),
+          discount: voucherDiscount ? new Decimal(voucherDiscount) : null,
+          expiresAt: new Date(Date.now() + paymentDeadlineMinutes * 60 * 1000), // Configurable expiry in minutes
           createdAt: new Date(), // Use server time or orderData.date if preferred
         },
       });
+
+      // Create voucher usage record if voucher was applied
+      if (voucherId) {
+        await tx.voucherUsage.create({
+          data: {
+            voucherId: voucherId,
+            userId: userId,
+            orderId: order.id,
+          },
+        });
+      }
 
       // Create order items
       for (const item of orderData.items) {

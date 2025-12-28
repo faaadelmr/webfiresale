@@ -3,7 +3,7 @@
 import { APP_NAME } from "@/lib/app-config";
 import { Dispatch, SetStateAction, useState, useEffect } from "react";
 import {
-  Flame, LayoutDashboard, Users, Package, ShoppingBasket, Zap, Truck, Settings, ChevronRight, Home, Palette
+  Flame, LayoutDashboard, Users, Package, ShoppingBasket, Zap, Truck, Settings, ChevronRight, Home, Palette, Ticket
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -51,6 +51,7 @@ export default function AdminNavClient({ mobile, setSidebarOpen, expanded = true
     { href: "/admin/products", icon: ShoppingBasket, label: "Produk" },
     { href: "/admin/auction", icon: Flame, label: "Lelang" },
     { href: "/admin/flashsale", icon: Zap, label: "Flash Sale" },
+    { href: "/admin/vouchers", icon: Ticket, label: "Voucher" },
     { href: "/admin/shipping", icon: Truck, label: "Pengiriman" },
     { href: "/admin/theme", icon: Palette, label: "Tema" },
     { href: "/admin/settings", icon: Settings, label: "Pengaturan" },

@@ -3,7 +3,7 @@
 import { Header } from "@/components/header";
 import { BuyerForm } from "@/components/buyer-form";
 import { useCart } from "@/hooks/use-cart";
-import { formatPrice, getGeneralSettingsFromStorage, getProfileFromStorage, updateSoldProductQuantity, calculateShippingCostFromCart } from "@/lib/utils";
+import { formatPrice, updateSoldProductQuantity, calculateShippingCostFromCart } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, User, Mail, AlertCircle, Clock } from "lucide-react";
@@ -14,6 +14,7 @@ import type { Order, AddressDetails, ShippingOption, GeneralSettings, UserProfil
 
 import { useToast } from "@/hooks/use-toast";
 import { Suspense } from "react";
+import { useSession } from "next-auth/react";
 
 // Disable static generation for this page to handle useSearchParams properly
 export const dynamic = 'force-dynamic';
@@ -23,6 +24,7 @@ export const fetchCache = 'force-no-store';
 // Separate the component that needs search params to avoid static prerendering issues
 function CheckoutContent() {
     const { cartItems, cartTotal, clearCart, refreshCart } = useCart();
+    const { data: session } = useSession();
     const searchParams = useSearchParams();
     const auctionId = searchParams.get('auctionId');
     const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
@@ -92,7 +94,6 @@ function CheckoutContent() {
                 });
             }
 
-            setProfile(getProfileFromStorage());
 
             // Check if this is an auction checkout
             if (auctionId) {
@@ -111,6 +112,18 @@ function CheckoutContent() {
 
         loadCheckoutData();
     }, [auctionId]);
+
+    // Sync profile from session if local storage data is missing or incomplete
+    useEffect(() => {
+        if (session?.user && (!profile || !profile.email)) {
+            setProfile((prev) => ({
+                fullName: prev?.fullName || session.user?.name || '',
+                email: session.user?.email || '',
+                phone: prev?.phone || '',
+                avatar: prev?.avatar || session.user?.image || '',
+            }));
+        }
+    }, [session, profile?.email]);
 
     // Create stock reservations for all items (flash sales, auctions, and regular products)
     useEffect(() => {
@@ -273,6 +286,81 @@ function CheckoutContent() {
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [reservationIds]);
 
+    // Voucher logic
+    const [voucherCode, setVoucherCode] = useState('');
+    const [appliedVoucher, setAppliedVoucher] = useState<{ id: string, code: string, discountAdjustment: number, discountType?: string } | null>(null);
+    const [voucherLoading, setVoucherLoading] = useState(false);
+
+    const handleApplyVoucher = async () => {
+        if (!voucherCode.trim()) return;
+        setVoucherLoading(true);
+
+        try {
+            const items = isAuctionCheckout
+                ? [{
+                    price: auctionItem.currentBid || auctionItem.minBid,
+                    quantity: 1,
+                    auctionId: auctionId
+                }]
+                : cartItems.map(item => ({
+                    price: item.product.flashSalePrice,
+                    quantity: item.quantity,
+                    flashSaleId: item.product.flashSaleId,
+                    // Regular items map naturally
+                }));
+
+            const res = await fetch('/api/vouchers/validate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    code: voucherCode,
+                    cartItems: items,
+                    shippingCost: shippingCost || 0
+                }),
+            });
+
+            const data = await res.json();
+
+            if (data.valid) {
+                setAppliedVoucher({
+                    id: data.voucher.id,
+                    code: data.voucher.code,
+                    discountAdjustment: data.discount,
+                    discountType: data.voucher.discountType
+                });
+                toast({
+                    title: "Voucher Berhasil Dipasang",
+                    description: `Voucher ${data.voucher.code} berhasil diterapkan. Hemat ${formatPrice(data.discount)}`,
+                });
+                setVoucherCode('');
+            } else {
+                toast({
+                    title: "Voucher Tidak Valid",
+                    description: data.message,
+                    variant: "destructive"
+                });
+                setAppliedVoucher(null);
+            }
+        } catch (error) {
+            console.error('Error applying voucher:', error);
+            toast({
+                title: "Error",
+                description: "Gagal memproses voucher",
+                variant: "destructive"
+            });
+        } finally {
+            setVoucherLoading(false);
+        }
+    };
+
+    const handleRemoveVoucher = () => {
+        setAppliedVoucher(null);
+        toast({
+            title: "Voucher Dihapus",
+            description: "Voucher telah dihapus dari pesanan.",
+        });
+    };
+
     // Calculate shipping cost based on product weight
     const [shippingCost, setShippingCost] = useState(0);
     const [isShippingAvailable, setIsShippingAvailable] = useState(false);
@@ -308,6 +396,9 @@ function CheckoutContent() {
 
     const finalTotal = cartTotal + shippingCost;
     const auctionFinalTotal = isAuctionCheckout ? (auctionItem?.currentBid || auctionItem?.minBid || 0) + shippingCost : finalTotal;
+    // Apply voucher discount to the appropriate total
+    const totalBeforeDiscount = isAuctionCheckout ? auctionFinalTotal : finalTotal;
+    const finalTotalWithDiscount = Math.max(0, totalBeforeDiscount - (appliedVoucher?.discountAdjustment || 0));
 
     const handlePlaceOrder = async () => {
         if (!selectedAddress) {
@@ -352,11 +443,14 @@ function CheckoutContent() {
             address: selectedAddress,
             date: new Date(),
             status: 'Pending',
-            total: auctionFinalTotal,
+            total: finalTotalWithDiscount, // Use discounted total
             items: orderItems,
             shippingCity: selectedAddress.city,
             shippingCost: shippingCost,
             expiresAt: expirationDate,
+            voucherId: appliedVoucher?.id,
+            voucherCode: appliedVoucher?.code,
+            discount: appliedVoucher?.discountAdjustment
         };
 
         // Send order to database via API
@@ -496,6 +590,36 @@ function CheckoutContent() {
                                     <span>Ongkos Kirim</span>
                                     <span>{selectedAddress ? (isShippingAvailable ? formatPrice(shippingCost) : 'Tidak Tersedia') : 'Pilih alamat'}</span>
                                 </div>
+
+                                {/* Voucher Display/Input */}
+                                {appliedVoucher ? (
+                                    <div className="flex justify-between text-green-600 font-medium">
+                                        <div className="flex items-center gap-2">
+                                            <span>Voucher ({appliedVoucher.code})</span>
+                                            <button onClick={handleRemoveVoucher} className="text-red-500 hover:text-red-700 text-xs underline">
+                                                Hapus
+                                            </button>
+                                        </div>
+                                        <span>- {formatPrice(appliedVoucher.discountAdjustment)}</span>
+                                    </div>
+                                ) : (
+                                    <div className="mt-2 flex gap-2">
+                                        <input
+                                            type="text"
+                                            placeholder="Kode Voucher"
+                                            className="input input-sm input-bordered w-full uppercase"
+                                            value={voucherCode}
+                                            onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                                        />
+                                        <button
+                                            className="btn btn-sm btn-outline"
+                                            onClick={handleApplyVoucher}
+                                            disabled={!voucherCode || voucherLoading}
+                                        >
+                                            {voucherLoading ? '...' : 'Gunakan'}
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                             {selectedAddress && !isShippingAvailable && (
                                 <div className="mt-4 p-3 bg-warning/10 text-warning text-sm rounded-lg flex items-center gap-2">
@@ -506,14 +630,21 @@ function CheckoutContent() {
                             <div className="divider"></div>
                             <div className="flex justify-between font-bold text-lg">
                                 <span>Total Pesanan</span>
-                                <span>{formatPrice(auctionFinalTotal)}</span>
+                                <div className="text-right">
+                                    {appliedVoucher && (
+                                        <span className="text-sm text-gray-400 line-through block font-normal">
+                                            {formatPrice(isAuctionCheckout ? auctionFinalTotal : finalTotal)}
+                                        </span>
+                                    )}
+                                    <span>{formatPrice(finalTotalWithDiscount)}</span>
+                                </div>
                             </div>
                             <button
                                 className="btn btn-primary w-full mt-6"
                                 onClick={handlePlaceOrder}
                                 disabled={!selectedAddress || !isShippingAvailable}
                             >
-                                Buat Pesanan - {formatPrice(auctionFinalTotal)}
+                                Buat Pesanan - {formatPrice(finalTotalWithDiscount)}
                             </button>
                         </div>
                     </div>

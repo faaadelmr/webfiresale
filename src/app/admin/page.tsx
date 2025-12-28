@@ -57,7 +57,7 @@ export default function AdminDashboardPage() {
         const productCounts: Record<string, { name: string; count: number; revenue: number }> = {};
         orders.forEach((order: any) => {
           order.items?.forEach((item: any) => {
-            const productId = item.productId;
+            const productId = item.product.id;
             if (!productCounts[productId]) {
               productCounts[productId] = {
                 name: item.product?.name || 'Unknown',
@@ -66,7 +66,7 @@ export default function AdminDashboardPage() {
               };
             }
             productCounts[productId].count += item.quantity;
-            productCounts[productId].revenue += item.price * item.quantity;
+            productCounts[productId].revenue += (item.product.flashSalePrice || 0) * item.quantity;
           });
         });
 
@@ -302,9 +302,9 @@ export default function AdminDashboardPage() {
                     {formatPrice(order.total)}
                   </p>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${order.status === 'Delivered' ? 'bg-success/10 text-success' :
-                      order.status === 'Pending' ? 'bg-warning/10 text-warning' :
-                        order.status === 'Processing' ? 'bg-info/10 text-info' :
-                          'bg-gray-100 text-gray-600'
+                    order.status === 'Pending' ? 'bg-warning/10 text-warning' :
+                      order.status === 'Processing' ? 'bg-info/10 text-info' :
+                        'bg-gray-100 text-gray-600'
                     }`}>
                     {order.status}
                   </span>
@@ -356,7 +356,7 @@ export default function AdminDashboardPage() {
                     <td className="w-32">
                       <progress
                         className="progress progress-success w-full"
-                        value={percentage}
+                        value={isNaN(percentage) ? 0 : percentage}
                         max="100"
                       />
                     </td>

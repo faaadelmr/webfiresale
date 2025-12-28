@@ -14,6 +14,7 @@ export const ORDER_STATUS_STANDARD: {
     'Re-upload Required': 'bg-red-300 text-red-900',
     'Refund Required': 'bg-orange-200 text-orange-800',
     'Refund Processing': 'bg-orange-300 text-orange-900',
+    'Refund Rejected': 'bg-red-200 text-red-900',
   },
 };
 

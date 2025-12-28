@@ -33,6 +33,7 @@ const navLinks = [
 export function Header() {
   const { data: session, status } = useSession()
   const [notifications, setNotifications] = useState<Notification[]>([])
+  const [readNotificationIds, setReadNotificationIds] = useState<string[]>([])
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(true)
   const [scrolled, setScrolled] = useState(false)
   const [businessLogo, setBusinessLogo] = useState<string | null>(null)
@@ -65,8 +66,7 @@ export function Header() {
   }, []);
 
   // Generate notifications from orders and auctions
-  const generateNotifications = useCallback((orders: Order[], auctions: any[]): Notification[] => {
-    const readNotifications = JSON.parse(localStorage.getItem('readNotifications') || '[]');
+  const generateNotifications = useCallback((orders: Order[], auctions: any[], readIds: string[]): Notification[] => {
     const now = new Date();
 
     const allNotifications: Notification[] = [];
@@ -82,7 +82,7 @@ export function Header() {
           message: `${auction.product?.name || 'Item Lelang'} - ${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(auction.currentBid || auction.minBid)}`,
           date: new Date(auction.endDate),
           url: `/checkout?auctionId=${auction.id}`,
-          read: readNotifications.includes(`auction-${auction.id}`)
+          read: readIds.includes(`auction-${auction.id}`)
         });
       });
 
@@ -96,7 +96,7 @@ export function Header() {
         message: `Pesanan #${order.id.substring(0, 8)} - ${order.status}`,
         date: new Date(order.date),
         url: `/order-detail/${order.id}`,
-        read: readNotifications.includes(`order-status-${order.id}`)
+        read: readIds.includes(`order-status-${order.id}`)
       });
 
       // Add payment confirmation notification if needed
@@ -108,7 +108,7 @@ export function Header() {
           message: `Pesanan #${order.id.substring(0, 8)} menunggu konfirmasi pembayaran`,
           date: new Date(order.date),
           url: `/order-detail/${order.id}`,
-          read: readNotifications.includes(`order-payment-${order.id}`)
+          read: readIds.includes(`order-payment-${order.id}`)
         });
       }
 
@@ -121,7 +121,7 @@ export function Header() {
           message: `Pesanan #${order.id.substring(0, 8)} telah dikirim`,
           date: new Date(order.date),
           url: `/order-detail/${order.id}`,
-          read: readNotifications.includes(`order-shipped-${order.id}`)
+          read: readIds.includes(`order-shipped-${order.id}`)
         });
       }
 
@@ -134,7 +134,7 @@ export function Header() {
           message: `Pesanan #${order.id.substring(0, 8)} telah diterima`,
           date: new Date(order.date),
           url: `/order-detail/${order.id}`,
-          read: readNotifications.includes(`order-delivered-${order.id}`)
+          read: readIds.includes(`order-delivered-${order.id}`)
         });
       }
 
@@ -147,7 +147,7 @@ export function Header() {
           message: `Pesanan #${order.id.substring(0, 8)} telah dibatalkan`,
           date: new Date(order.date),
           url: `/order-detail/${order.id}`,
-          read: readNotifications.includes(`order-cancelled-${order.id}`)
+          read: readIds.includes(`order-cancelled-${order.id}`)
         });
       }
 
@@ -160,7 +160,7 @@ export function Header() {
           message: `Proses refund untuk pesanan #${order.id.substring(0, 8)}`,
           date: new Date(order.date),
           url: `/order-detail/${order.id}`,
-          read: readNotifications.includes(`order-refund-${order.id}`)
+          read: readIds.includes(`order-refund-${order.id}`)
         });
       }
     });
@@ -173,9 +173,10 @@ export function Header() {
   const fetchNotifications = useCallback(async () => {
     try {
       // Fetch orders and auctions in parallel
-      const [ordersRes, auctionsRes] = await Promise.all([
+      const [ordersRes, auctionsRes, readRes] = await Promise.all([
         fetch('/api/orders'),
-        fetch('/api/auctions')
+        fetch('/api/auctions'),
+        fetch('/api/notifications/read')
       ]);
 
       let orders: Order[] = [];
@@ -189,7 +190,13 @@ export function Header() {
         auctions = await auctionsRes.json();
       }
 
-      const notifs = generateNotifications(orders, auctions);
+      let readIds: string[] = [];
+      if (readRes.ok) {
+        readIds = await readRes.json();
+        setReadNotificationIds(readIds);
+      }
+
+      const notifs = generateNotifications(orders, auctions, readIds);
       setNotifications(notifs);
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -209,38 +216,15 @@ export function Header() {
     return () => clearInterval(interval);
   }, [fetchNotifications]);
 
-  // Listen for read status changes
+  // Listen for read status changes (deprecated logic removed)
+  // We rely on API and state now.
   useEffect(() => {
-    const handleReadStatusChange = () => {
-      // Re-apply read status from localStorage
-      const readNotifications = JSON.parse(localStorage.getItem('readNotifications') || '[]');
-      setNotifications(prev =>
-        prev.map(n => ({
-          ...n,
-          read: readNotifications.includes(n.id)
-        }))
-      );
-    };
-
-    window.addEventListener('notificationReadStatusChanged', handleReadStatusChange);
-    window.addEventListener('storage', handleReadStatusChange);
-
-    return () => {
-      window.removeEventListener('notificationReadStatusChanged', handleReadStatusChange);
-      window.removeEventListener('storage', handleReadStatusChange);
-    };
+    // Optional: socket or polling for real-time read status if needed
   }, []);
 
-  const markNotificationAsRead = (notificationId: string) => {
-    // Update localStorage
-    const readNotifications = JSON.parse(localStorage.getItem('readNotifications') || '[]');
-    if (!readNotifications.includes(notificationId)) {
-      readNotifications.push(notificationId);
-      localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
-      window.dispatchEvent(new Event('notificationReadStatusChanged'));
-    }
-
-    // Update state
+  const markNotificationAsRead = async (notificationId: string) => {
+    // Optimistic update
+    setReadNotificationIds(prev => [...prev, notificationId]);
     setNotifications(prev =>
       prev.map(notification =>
         notification.id === notificationId
@@ -248,19 +232,39 @@ export function Header() {
           : notification
       )
     );
+
+    // Call API
+    try {
+      await fetch('/api/notifications/read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notificationId })
+      });
+    } catch (err) {
+      console.error("Failed to mark notification read", err);
+    }
   };
 
-  const markAllAsRead = () => {
-    const currentReadNotifications = JSON.parse(localStorage.getItem('readNotifications') || '[]');
-    const allNotificationIds = notifications.map(n => n.id);
-    const allIds = Array.from(new Set([...currentReadNotifications, ...allNotificationIds]));
-    localStorage.setItem('readNotifications', JSON.stringify(allIds));
+  const markAllAsRead = async () => {
+    const unreadIds = notifications.filter(n => !n.read).map(n => n.id);
+    if (unreadIds.length === 0) return;
 
+    // Optimistic
+    setReadNotificationIds(prev => [...prev, ...unreadIds]);
     setNotifications(prev =>
       prev.map(notification => ({ ...notification, read: true }))
     );
 
-    window.dispatchEvent(new Event('notificationReadStatusChanged'));
+    // Call API
+    try {
+      await fetch('/api/notifications/read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notificationIds: unreadIds })
+      });
+    } catch (err) {
+      console.error("Failed to mark all read", err);
+    }
   };
 
   const getInitials = (name: string) => {
@@ -477,7 +481,6 @@ export function Header() {
                 <li>
                   <a
                     onClick={() => {
-                      localStorage.removeItem('userProfile');
                       signOut({ callbackUrl: '/' });
                     }}
                     className="text-error hover:bg-error/10 py-2.5"
@@ -497,6 +500,6 @@ export function Header() {
           )}
         </div>
       </div>
-    </header>
+    </header >
   )
 }

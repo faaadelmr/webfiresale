@@ -14,9 +14,7 @@ import {
     CarouselPrevious,
     type CarouselApi,
 } from "@/components/ui/carousel";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { UserProfile } from "@/lib/types";
-import { getProfileFromStorage, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 // Auction type matching API response
 interface Auction {
@@ -44,21 +42,8 @@ export default function AuctionsPage() {
     const [api, setApi] = React.useState<CarouselApi>();
     const [current, setCurrent] = React.useState(0);
     const [count, setCount] = React.useState(0);
-    const [profile, setProfile] = React.useState<UserProfile | null>(null);
     const [auctions, setAuctions] = React.useState<Auction[]>([]);
     const [loading, setLoading] = React.useState(true);
-
-    // Fetch profile
-    React.useEffect(() => {
-        const fetchProfile = () => {
-            setProfile(getProfileFromStorage());
-        };
-        fetchProfile();
-        window.addEventListener('storage', fetchProfile);
-        return () => {
-            window.removeEventListener('storage', fetchProfile);
-        };
-    }, []);
 
     // Fetch auctions from API
     React.useEffect(() => {

@@ -23,81 +23,15 @@ export function formatDate(date: Date) {
   });
 }
 
-// --- LocalStorage Utility Functions (only for client-side settings cache) ---
-function getFromStorage<T>(key: string, defaultValue: T): T {
-  if (typeof window !== 'undefined') {
-    const saved = localStorage.getItem(key);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error(`Failed to parse ${key} from storage`, e);
-        return defaultValue;
-      }
-    }
-  }
-  return defaultValue;
-}
+// --- LocalStorage Utility Functions Removed ---
+// All data persistence is now handled via API/Database
 
-function saveToStorage<T>(key: string, data: T) {
-  if (typeof window !== 'undefined') {
-    try {
-      localStorage.setItem(key, JSON.stringify(data));
-    } catch (e) {
-      console.error(`Failed to save ${key} to storage`, e);
-    }
-  }
-}
 
 // --- Address Functions (local cache for quick access) ---
-export const getSavedAddresses = (): AddressDetails[] => getFromStorage<AddressDetails[]>('userAddresses', []);
-export const saveAddresses = (addresses: AddressDetails[]) => saveToStorage<AddressDetails[]>('userAddresses', addresses);
-
-// --- Profile Functions (local cache for quick access) ---
-const defaultProfile: UserProfile = {
-  fullName: "",
-  email: "",
-  phone: "",
-  avatar: ""
-};
-export const getProfileFromStorage = (): UserProfile => getFromStorage<UserProfile>('userProfile', defaultProfile);
-export const saveProfileToStorage = (profile: UserProfile) => saveToStorage<UserProfile>('userProfile', profile);
+// --- Deprecated Storage Functions Removed ---
 
 // --- General Settings (local cache) ---
-export const getGeneralSettingsFromStorage = (): GeneralSettings => {
-  const defaultGeneralSettings: GeneralSettings = {
-    bannerEnabled: false,
-    paymentTimeLimit: 5,
-    businessAddress: undefined,
-    printSize: 'a4'
-  };
-  return getFromStorage('generalSettings', defaultGeneralSettings);
-};
-
-export function saveGeneralSettingsToStorage(settings: any) {
-  if (typeof window !== 'undefined') {
-    try {
-      // Create a copy without the large image data to prevent storage errors
-      const { bannerImage, ...rest } = settings;
-      const lightSettings = {
-        ...rest,
-        bannerImage: bannerImage ? true : undefined, // Store a boolean to indicate presence
-      };
-      saveToStorage('generalSettings', lightSettings);
-      if (bannerImage) {
-        saveToStorage('bannerImage', { image: bannerImage });
-      } else {
-        localStorage.removeItem('bannerImage'); // Remove if no image
-      }
-    } catch (error) {
-      console.error('Error saving general settings to localStorage:', error);
-    }
-  }
-}
-
-// --- Account Settings (local cache for payment info) ---
-export const getAccountSettingsFromStorage = () => getFromStorage('accountSettings', null);
-export const saveAccountSettingsToStorage = (settings: any) => saveToStorage('accountSettings', settings);
+// --- General Settings (handled by API/DB now) ---
 
 // --- Cart Availability Check (uses data from cart context) ---
 export function isProductAvailableForCart(

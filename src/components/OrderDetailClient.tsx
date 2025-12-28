@@ -1,8 +1,8 @@
 "use client";
 
-import { formatPrice, getAccountSettingsFromStorage } from "@/lib/utils";
+import { formatPrice } from "@/lib/utils";
 import Image from "next/image";
-import { PackageCheck, CreditCard, Clock, Warehouse, Truck, CheckCircle, Upload, AlertCircle, MessageSquare, Star, XCircle, Info, Banknote, Calendar, MapPin, Phone, Mail, FileText, Check, Home, Building, User } from "lucide-react";
+import { PackageCheck, CreditCard, Clock, Warehouse, Truck, CheckCircle, Upload, AlertCircle, MessageSquare, Star, XCircle, Info, Banknote, Calendar, MapPin, Phone, Mail, FileText, Check, Home, Building, User, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Order, AccountSettings } from "@/lib/types";
@@ -28,10 +28,12 @@ const PaymentCountdown = ({ expiresAt, onExpire }: { expiresAt: Date, onExpire: 
     const expiration = new Date(expiresAt);
     const difference = +expiration - +now;
 
-    let timeLeft = { minutes: 0, seconds: 0 };
+    let timeLeft = { days: 0, hours: 0, minutes: 0, seconds: 0 };
 
     if (difference > 0) {
       timeLeft = {
+        days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+        hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
         minutes: Math.floor((difference / 1000 / 60) % 60),
         seconds: Math.floor((difference / 1000) % 60),
       };
@@ -47,7 +49,7 @@ const PaymentCountdown = ({ expiresAt, onExpire }: { expiresAt: Date, onExpire: 
       const newTimeLeft = calculateTimeLeft();
       setTimeLeft(newTimeLeft);
 
-      if (newTimeLeft.minutes <= 0 && newTimeLeft.seconds <= 0) {
+      if (newTimeLeft.days <= 0 && newTimeLeft.hours <= 0 && newTimeLeft.minutes <= 0 && newTimeLeft.seconds <= 0) {
         onExpire();
         clearInterval(timer);
       }
@@ -70,7 +72,10 @@ const PaymentCountdown = ({ expiresAt, onExpire }: { expiresAt: Date, onExpire: 
         <p className="text-sm mt-1">Selesaikan pembayaran dalam:</p>
       </div>
       <div className="text-2xl font-bold tracking-widest bg-warning text-warning-content px-3 py-1.5 rounded-lg">
-        {String(timeLeft.minutes).padStart(2, '0')}:{String(timeLeft.seconds).padStart(2, '0')}
+        {timeLeft.days > 0 && <span>{String(timeLeft.days).padStart(2, '0')}:</span>}
+        {timeLeft.hours > 0 && <span>{String(timeLeft.hours).padStart(2, '0')}:</span>}
+        <span>{String(timeLeft.minutes).padStart(2, '0')}</span>:
+        <span>{String(timeLeft.seconds).padStart(2, '0')}</span>
       </div>
     </motion.div>
   );
@@ -209,8 +214,11 @@ export default function OrderDetailClient({ initialOrder, orderId }: { initialOr
       return; // Skip the rest of the initialization since we're fetching data
     }
 
-    const savedAccountSettings = getAccountSettingsFromStorage();
-    setAccountSettings(savedAccountSettings);
+    // Fetch account settings from API instead of localStorage
+    fetch('/api/settings')
+      .then(res => res.json())
+      .then(data => setAccountSettings(data))
+      .catch(err => console.error('Error fetching settings:', err));
 
     setIsLoading(false);
   }, [initialOrder, orderId]);
@@ -596,6 +604,15 @@ export default function OrderDetailClient({ initialOrder, orderId }: { initialOr
                       <span className="text-base-content/70">Subtotal</span>
                       <span className="font-medium">{formatPrice(subtotal)}</span>
                     </div>
+                    {order.discount && order.discount > 0 && (
+                      <div className="flex justify-between text-success">
+                        <span>
+                          Diskon
+                          {order.voucherCode && <span className="ml-2 px-1.5 py-0.5 bg-success/10 text-xs rounded font-mono font-medium">{order.voucherCode}</span>}
+                        </span>
+                        <span className="font-medium">-{formatPrice(order.discount)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span className="text-base-content/70">Pengiriman ({order.shippingCity || 'N/A'})</span>
                       <span className="font-medium">{formatPrice(order.shippingCost || 0)}</span>
