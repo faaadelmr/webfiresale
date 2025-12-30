@@ -151,7 +151,7 @@ export default function Home() {
       )}
 
       {/* Hero Section */}
-      <section className={`relative w-full overflow-hidden bg-base-100 ${settings?.bannerEnabled ? 'pt-10' : 'pt-24 md:pt-32'} pb-0`}>
+      <section className={`relative w-full overflow-hidden bg-base-100 ${settings?.bannerEnabled ? 'pt-10' : 'pt-16 md:pt-20'} pb-0`}>
         <div className="container mx-auto px-4 md:px-6">
           <div className="grid gap-8 lg:grid-cols-2 lg:gap-16 items-center min-h-[calc(100vh-8rem)]">
             <div className="flex flex-col justify-center space-y-6 z-10 text-center lg:text-left items-center lg:items-start">

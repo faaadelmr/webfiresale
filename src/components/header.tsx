@@ -1,7 +1,7 @@
 "use client"
 
 import { APP_NAME } from "@/lib/app-config"
-import { Flame, LogOut, User, Bell, ShoppingBag, Search } from "lucide-react"
+import { Flame, LogOut, User, Bell, ShoppingBag, Search, Settings } from "lucide-react"
 import { CartDropdown } from "./cart-dropdown"
 
 import Link from "next/link"
@@ -174,9 +174,9 @@ export function Header() {
     try {
       // Fetch orders and auctions in parallel
       const [ordersRes, auctionsRes, readRes] = await Promise.all([
-        fetch('/api/orders'),
-        fetch('/api/auctions'),
-        fetch('/api/notifications/read')
+        fetch('/api/orders', { cache: 'no-store' }),
+        fetch('/api/auctions', { cache: 'no-store' }),
+        fetch('/api/notifications/read', { cache: 'no-store' })
       ]);
 
       let orders: Order[] = [];
@@ -475,6 +475,12 @@ export function Header() {
                   <Link href="/orders" className="py-2.5">
                     <ShoppingBag className="h-4 w-4" />
                     Pesanan Saya
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/settings" className="py-2.5">
+                    <Settings className="h-4 w-4" />
+                    Pengaturan
                   </Link>
                 </li>
                 <div className="divider my-1"></div>

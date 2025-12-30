@@ -339,16 +339,8 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
     }
 
     return (
-        <div className="min-h-screen bg-base-200">
-            {/* Header Navigation */}
-            <div className="bg-base-100 border-b border-base-300 sticky top-0 z-30">
-                <div className="container mx-auto px-4 py-4">
-                    <Link href="/auctions" className="btn btn-ghost btn-sm gap-2">
-                        <ArrowLeft className="h-4 w-4" />
-                        Kembali
-                    </Link>
-                </div>
-            </div>
+        <div className="min-h-screen bg-base-200 pt-20">
+
 
             {/* Winner Banner */}
             {isHighestBidder && auctionEnded && (

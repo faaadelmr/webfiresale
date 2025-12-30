@@ -2,9 +2,10 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../api/auth/[...nextauth]/route';
 import { redirect } from 'next/navigation';
-import DashboardNavbar from '@/components/ui/DashboardNavbar';
+
 import SettingsClient from './SettingsClient';
 import prisma from '@/lib/prisma';
+
 
 export default async function SettingsPage() {
   const session = await getServerSession(authOptions);
@@ -30,9 +31,7 @@ export default async function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-base-200">
-      <DashboardNavbar />
-
+    <div className="min-h-screen bg-base-200 pt-20">
       <main className="p-4">
         <div className="max-w-4xl mx-auto">
           <div className="hero bg-base-100 rounded-box shadow-md mb-6">
