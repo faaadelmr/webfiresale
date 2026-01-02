@@ -1,7 +1,7 @@
 "use client"
 
 import { NEXT_PUBLIC_APP_NAME } from "@/lib/app-config"
-import { Flame, LogOut, User, Bell, ShoppingBag, Search, Settings } from "lucide-react"
+import { Flame, LogOut, User, Bell, ShoppingBag, Search, Settings, Menu, X } from "lucide-react"
 import { CartDropdown } from "./cart-dropdown"
 
 import Link from "next/link"
@@ -37,6 +37,7 @@ export function Header() {
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(true)
   const [scrolled, setScrolled] = useState(false)
   const [businessLogo, setBusinessLogo] = useState<string | null>(null)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const pathname = usePathname()
 
   // Fetch business logo from settings
@@ -305,28 +306,38 @@ export function Header() {
       )}
     >
       <div className="container flex h-16 items-center justify-between px-4">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 cursor-pointer no-underline">
-          {businessLogo ? (
-            <Image
-              src={businessLogo}
-              alt={NEXT_PUBLIC_APP_NAME}
-              width={32}
-              height={32}
-              className="h-8 w-8 object-contain rounded-full"
-            />
-          ) : (
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
-              <Flame className="h-5 w-5 fill-current" />
-            </div>
-          )}
-          <span className="text-xl font-bold tracking-tight text-base-content">
-            {NEXT_PUBLIC_APP_NAME}
-          </span>
-        </Link>
+        <div className="flex items-center gap-4">
+          {/* Mobile Menu Toggle */}
+          <button
+            className="btn btn-ghost btn-circle btn-sm lg:hidden"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2 cursor-pointer no-underline">
+            {businessLogo ? (
+              <Image
+                src={businessLogo}
+                alt={NEXT_PUBLIC_APP_NAME}
+                width={32}
+                height={32}
+                className="h-8 w-8 object-contain rounded-full"
+              />
+            ) : (
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                <Flame className="h-5 w-5 fill-current" />
+              </div>
+            )}
+            <span className="text-xl font-bold tracking-tight text-base-content">
+              {NEXT_PUBLIC_APP_NAME}
+            </span>
+          </Link>
+        </div>
 
         {/* Navigation Links - Center */}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:block">
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden lg:block">
           <nav className="flex items-center gap-2 bg-base-200/50 p-1 rounded-full border border-base-200 backdrop-blur-sm shadow-sm">
             {navLinks.map(({ href, label }) => renderNavLink(href, label))}
           </nav>
@@ -508,6 +519,36 @@ export function Header() {
           )}
         </div>
       </div>
+
+      {/* Mobile Menu */}
+      {mobileMenuOpen && (
+        <div className="lg:hidden absolute top-16 left-0 right-0 bg-base-100/95 backdrop-blur-md border-b border-base-200 shadow-lg p-4 animate-in slide-in-from-top-2 duration-200">
+          <nav className="flex flex-col gap-2">
+            {navLinks.map(({ href, label }) => {
+              const isActive =
+                (href === '/' && pathname === href) ||
+                (href !== '/' && href !== '/#flash-sales' && pathname.startsWith(href));
+
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={cn(
+                    'px-4 py-3 text-sm font-medium rounded-xl transition-colors flex items-center',
+                    isActive
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-base-content hover:bg-base-200'
+                  )}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+      )
+      }
     </header >
   )
 }

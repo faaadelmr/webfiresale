@@ -112,7 +112,7 @@ export default function AuctionsPage() {
                 title: 'Silakan Login',
                 description: 'Anda harus login terlebih dahulu untuk menempatkan tawaran.',
             });
-            router.push(`/login?callbackUrl=/auctions/${auctionId}`);
+            router.push(`/signin?callbackUrl=/auctions/${auctionId}`);
             return;
         }
     };

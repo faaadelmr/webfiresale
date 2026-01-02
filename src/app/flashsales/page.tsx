@@ -206,7 +206,7 @@ export default function FlashSalePage() {
                 title: 'Silakan Login',
                 description: 'Anda harus login terlebih dahulu untuk menambahkan ke keranjang.',
             });
-            router.push('/login?callbackUrl=/flashsales');
+            router.push('/signin?callbackUrl=/flashsales');
             return;
         }
 
@@ -255,7 +255,7 @@ export default function FlashSalePage() {
                 title: 'Silakan Login',
                 description: 'Anda harus login terlebih dahulu untuk melakukan pembelian.',
             });
-            router.push('/login?callbackUrl=/flashsales');
+            router.push('/signin?callbackUrl=/flashsales');
             return;
         }
 

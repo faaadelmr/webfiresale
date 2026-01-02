@@ -173,7 +173,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
         title: 'Silakan Login',
         description: 'Anda harus login terlebih dahulu untuk menempatkan tawaran.',
       });
-      router.push(`/login?callbackUrl=/auction/${id}`);
+      router.push(`/signin?callbackUrl=/auction/${id}`);
       return;
     }
 
@@ -220,7 +220,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
         title: 'Silakan Login',
         description: 'Anda harus login terlebih dahulu untuk membeli produk.',
       });
-      router.push(`/login?callbackUrl=/auction/${id}`);
+      router.push(`/signin?callbackUrl=/auction/${id}`);
       return;
     }
 
