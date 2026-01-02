@@ -320,7 +320,7 @@ export default function OrderDetailClient({ initialOrder, orderId }: { initialOr
           setOrder(result.order);
           toast({
             title: "Bukti Pembayaran Terkirim",
-            description: `Status pesanan #${order.id} telah diperbarui.`,
+            description: `Status pesanan #${result.order.displayId || order.displayId || order.id} telah diperbarui.`,
           });
           setFileName("Pilih file bukti pembayaran");
           setPaymentProof(null);
@@ -519,12 +519,15 @@ export default function OrderDetailClient({ initialOrder, orderId }: { initialOr
             <div>
               <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
                 <FileText className="w-7 h-7 text-primary" />
-                <span>Detail Pesanan #{order.id}</span>
+                <span>Detail Pesanan</span>
               </h1>
-              <p className="text-base-content/70 mt-1 flex items-center gap-1.5">
-                <Calendar className="w-4 h-4" />
-                <span>Dipesan pada {new Date(order.date).toLocaleDateString("id-ID", { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-              </p>
+              <div className="mt-2 flex flex-col gap-1">
+                <p className="text-lg font-bold text-primary"> #{order.displayId} </p>
+                <p className="text-base-content/70 flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4" />
+                  <span>Dipesan pada {new Date(order.date).toLocaleDateString("id-ID", { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                </p>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <div className={`px-4 py-2 rounded-full text-sm font-medium ${order.status === "Delivered"
@@ -640,6 +643,17 @@ export default function OrderDetailClient({ initialOrder, orderId }: { initialOr
                   </h2>
                 </div>
                 <div className="p-6 space-y-4">
+                  {(order.displayId) && (
+                    <div className="flex items-start gap-3 pb-4 border-b border-base-200">
+                      <div className="mt-0.5 p-2 bg-primary/10 text-primary rounded-lg">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-base-content/70">Order ID</p>
+                        <p className="font-mono font-bold text-lg">{order.displayId}</p>
+                      </div>
+                    </div>
+                  )}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex items-start gap-3">
                       <div className="mt-0.5 p-2 bg-primary/10 text-primary rounded-lg"><User className="w-4 h-4" /></div>

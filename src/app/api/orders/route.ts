@@ -100,6 +100,8 @@ export async function GET(request: NextRequest) {
 
         return {
           id: order.id,
+          displayId: (order as any).displayId || undefined,
+          productId: (order as any).productId || undefined,
           customerName: order.user.name || order.address.name || 'N/A',
           customerEmail: order.user.email || 'N/A',
           customerPhone: order.address.phone || 'N/A',
@@ -196,6 +198,8 @@ export async function GET(request: NextRequest) {
 
         return {
           id: order.id,
+          displayId: (order as any).displayId || undefined,
+          productId: (order as any).productId || undefined,
           customerName: order.address.name,
           customerEmail: session.user.email || '',
           customerPhone: order.address.phone,
@@ -418,26 +422,40 @@ export async function POST(request: NextRequest) {
       }
       // Note: existingAddress doesn't have city/province as we only store IDs now
 
+      // Generate Display ID
+      const appName = process.env.NEXT_PUBLIC_APP_NAME || 'WFS';
+      const sanitizedAppName = appName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+      const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const generatedDisplayId = `${sanitizedAppName}-${randomSuffix}`;
+
+      // Create the order
+      // Prepare order data with cast to any to avoid strict type checks on new fields
+      const orderCreateData: any = {
+        user: {
+          connect: { id: userId }
+        },
+        status: 'Pending', // Default status for new orders
+        totalAmount: new Decimal(orderData.total),
+        address: {
+          connect: {
+            id: addressId,
+          },
+        },
+        shippingCity: cityName, // Persist city name for shipping label
+        shippingCost: orderData.shippingCost ? new Decimal(orderData.shippingCost) : null,
+        ...(voucherId ? { voucher: { connect: { id: voucherId } } } : {}),
+        discount: voucherDiscount ? new Decimal(voucherDiscount) : null,
+
+        displayId: generatedDisplayId,
+        productId: orderData.items.length > 0 ? orderData.items[0].product.id : null,
+
+        expiresAt: new Date(Date.now() + paymentDeadlineMinutes * 60 * 1000), // Configurable expiry in minutes
+        createdAt: new Date(), // Use server time or orderData.date if preferred
+      };
+
       // Create the order
       const order = await tx.order.create({
-        data: {
-          user: {
-            connect: { id: userId }
-          },
-          status: 'Pending', // Default status for new orders
-          totalAmount: new Decimal(orderData.total),
-          address: {
-            connect: {
-              id: addressId,
-            },
-          },
-          shippingCity: cityName, // Persist city name for shipping label
-          shippingCost: orderData.shippingCost ? new Decimal(orderData.shippingCost) : null,
-          ...(voucherId ? { voucher: { connect: { id: voucherId } } } : {}),
-          discount: voucherDiscount ? new Decimal(voucherDiscount) : null,
-          expiresAt: new Date(Date.now() + paymentDeadlineMinutes * 60 * 1000), // Configurable expiry in minutes
-          createdAt: new Date(), // Use server time or orderData.date if preferred
-        },
+        data: orderCreateData,
       });
 
       // Create voucher usage record if voucher was applied
@@ -453,7 +471,33 @@ export async function POST(request: NextRequest) {
 
       // Create order items
       for (const item of orderData.items) {
-        const itemPrice = item.product.flashSalePrice || item.product.originalPrice || 0;
+        // Fetch the product and active flash sale from database to get the latest correct price
+        const productFromDb = await tx.product.findUnique({
+          where: { id: item.product.id },
+          include: {
+            flashSales: {
+              where: {
+                status: 'active',
+                startDate: { lte: new Date() },
+                endDate: { gte: new Date() },
+              },
+              orderBy: { createdAt: 'desc' },
+              take: 1
+            }
+          }
+        });
+
+        let itemPrice = productFromDb?.originalPrice ? Number(productFromDb.originalPrice) : 0;
+
+        // If there is an active flash sale, use that price
+        if (productFromDb?.flashSales && productFromDb.flashSales.length > 0) {
+          itemPrice = Number(productFromDb.flashSales[0].flashSalePrice);
+        } else {
+          // Also check if it's an auction item (if applicable, though usually auctions have their own flow)
+          // For now, we fallback to the payload price IF meaningful validation is too complex, 
+          // BUT strict security says we should trust DB. 
+          // If it's a normal item, basic price is originalPrice.
+        }
 
         await tx.orderItem.create({
           data: {
@@ -465,22 +509,16 @@ export async function POST(request: NextRequest) {
         });
 
         // Update flash sale sold count if this is a flash sale item
-        if (item.product.flashSaleId) {
-          // Check if flash sale exists before updating
-          const flashSaleExists = await tx.flashSale.findUnique({
-            where: { id: item.product.flashSaleId },
-          });
-
-          if (flashSaleExists) {
-            await tx.flashSale.update({
-              where: { id: item.product.flashSaleId },
-              data: {
-                sold: {
-                  increment: item.quantity,
-                },
+        if (productFromDb?.flashSales && productFromDb.flashSales.length > 0) {
+          const activeFlashSale = productFromDb.flashSales[0];
+          await tx.flashSale.update({
+            where: { id: activeFlashSale.id },
+            data: {
+              sold: {
+                increment: item.quantity,
               },
-            });
-          }
+            },
+          });
         }
       }
 
@@ -543,7 +581,8 @@ export async function POST(request: NextRequest) {
 
     return new Response(JSON.stringify({
       message: 'Order created successfully',
-      orderId: createdOrder.id
+      orderId: createdOrder.id,
+      displayId: (createdOrder as any).displayId
     }), {
       status: 201,
       headers: { 'Content-Type': 'application/json' },

@@ -89,15 +89,17 @@ export function Header() {
     // Order notifications
     orders.forEach((order: Order) => {
       // Add order status update notification
-      allNotifications.push({
-        id: `order-status-${order.id}`,
-        type: 'order',
-        title: `Status Pesanan: ${order.status}`,
-        message: `Pesanan #${order.id.substring(0, 8)} - ${order.status}`,
-        date: new Date(order.date),
-        url: `/order-detail/${order.id}`,
-        read: readIds.includes(`order-status-${order.id}`)
-      });
+      if (order.status !== 'Pending') {
+        allNotifications.push({
+          id: `order-status-${order.id}`,
+          type: 'order',
+          title: `Status Pesanan: ${order.status}`,
+          message: `Pesanan #${order.displayId || order.id.substring(0, 8)} - ${order.status}`,
+          date: new Date(order.date),
+          url: `/order-detail/${order.id}`,
+          read: readIds.includes(`order-status-${order.id}`)
+        });
+      }
 
       // Add payment confirmation notification if needed
       if (order.status === 'Waiting for Confirmation') {
@@ -105,7 +107,7 @@ export function Header() {
           id: `order-payment-${order.id}`,
           type: 'payment',
           title: 'Konfirmasi Pembayaran Diperlukan',
-          message: `Pesanan #${order.id.substring(0, 8)} menunggu konfirmasi pembayaran`,
+          message: `Pesanan #${order.displayId || order.id.substring(0, 8)} menunggu konfirmasi pembayaran`,
           date: new Date(order.date),
           url: `/order-detail/${order.id}`,
           read: readIds.includes(`order-payment-${order.id}`)
@@ -118,7 +120,7 @@ export function Header() {
           id: `order-shipped-${order.id}`,
           type: 'shipping',
           title: 'Pesanan Dikirim',
-          message: `Pesanan #${order.id.substring(0, 8)} telah dikirim`,
+          message: `Pesanan #${order.displayId || order.id.substring(0, 8)} telah dikirim`,
           date: new Date(order.date),
           url: `/order-detail/${order.id}`,
           read: readIds.includes(`order-shipped-${order.id}`)
@@ -131,7 +133,7 @@ export function Header() {
           id: `order-delivered-${order.id}`,
           type: 'delivery',
           title: 'Pesanan Diterima',
-          message: `Pesanan #${order.id.substring(0, 8)} telah diterima`,
+          message: `Pesanan #${order.displayId || order.id.substring(0, 8)} telah diterima`,
           date: new Date(order.date),
           url: `/order-detail/${order.id}`,
           read: readIds.includes(`order-delivered-${order.id}`)
@@ -144,7 +146,7 @@ export function Header() {
           id: `order-cancelled-${order.id}`,
           type: 'cancellation',
           title: 'Pesanan Dibatalkan',
-          message: `Pesanan #${order.id.substring(0, 8)} telah dibatalkan`,
+          message: `Pesanan #${order.displayId || order.id.substring(0, 8)} telah dibatalkan`,
           date: new Date(order.date),
           url: `/order-detail/${order.id}`,
           read: readIds.includes(`order-cancelled-${order.id}`)
@@ -157,7 +159,7 @@ export function Header() {
           id: `order-refund-${order.id}`,
           type: 'refund',
           title: 'Refund Diperlukan',
-          message: `Proses refund untuk pesanan #${order.id.substring(0, 8)}`,
+          message: `Proses refund untuk pesanan #${order.displayId || order.id.substring(0, 8)}`,
           date: new Date(order.date),
           url: `/order-detail/${order.id}`,
           read: readIds.includes(`order-refund-${order.id}`)

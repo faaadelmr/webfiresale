@@ -130,6 +130,7 @@ export async function GET(
     // Construct the final order object to match the frontend type
     const orderResponse: Order = {
       id: order.id,
+      displayId: (order as any).displayId || undefined,
       customerName: order.address.name,
       customerEmail: session.user.email || '',
       customerPhone: order.address.phone,
@@ -279,6 +280,7 @@ export async function PATCH(
 
       return {
         id: rawOrder.id,
+        displayId: rawOrder.displayId || undefined,
         customerName: rawOrder.address.name,
         customerEmail: '', // Cannot fetch user email easily here without extra query, acceptable for update response
         customerPhone: rawOrder.address.phone,

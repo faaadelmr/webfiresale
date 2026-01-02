@@ -115,6 +115,8 @@ export type AddressDetails = {
 
 export type Order = {
   id: string;
+  displayId?: string; // Human readable ID
+  productId?: string; // Main product ID
   customerName: string;
   customerEmail: string;
   customerPhone: string;

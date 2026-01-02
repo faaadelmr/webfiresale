@@ -44,6 +44,7 @@ export default function NotificationPage() {
     // Apply search filter
     if (searchTerm) {
       result = result.filter(order =>
+        (order.displayId && order.displayId.toLowerCase().includes(searchTerm.toLowerCase())) ||
         order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
         order.customerName.toLowerCase().includes(searchTerm.toLowerCase())
       );
@@ -208,7 +209,7 @@ export default function NotificationPage() {
                                   order.status === 'Cancelled' ? 'badge-error' :
                                     order.status === 'Refund Required' || order.status === 'Refund Processing' ? 'badge-warning' :
                                       'badge-primary'}`}>
-                                  #{order.id.substring(0, 8)}
+                                  #{order.displayId || order.id.substring(0, 8)}
                                 </span>
                               </h3>
                               <p className="text-base-content/70 mt-1">

@@ -65,6 +65,7 @@ function OrderTable({
     const lowercasedTerm = searchTerm.toLowerCase();
     const fullAddress = `${order.address.street}, ${order.address.village}, ${order.address.district}, ${order.address.city}, ${order.address.province}`.toLowerCase();
     return (
+      (order.displayId && order.displayId.toLowerCase().includes(lowercasedTerm)) ||
       order.id.toLowerCase().includes(lowercasedTerm) ||
       order.customerName.toLowerCase().includes(lowercasedTerm) ||
       order.customerEmail.toLowerCase().includes(lowercasedTerm) ||
@@ -176,7 +177,7 @@ function OrderTable({
 
         toast({
           title: "Bukti Pengembalian Terkirim",
-          description: `Bukti pengembalian dana untuk pesanan #${orderId} telah diperbarui.`,
+          description: `Bukti pengembalian dana untuk pesanan #${order?.displayId || orderId} telah diperbarui.`,
         });
 
         setRefundProofDialogOpen(false);
@@ -204,7 +205,7 @@ function OrderTable({
   const handleRefundProofFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
       const file = event.target.files[0];
-      if (file.size > 2 * 1024 * 1024) { // 2MB limit
+      if (file.size > 1.3 * 1024 * 1024) { // 1.3MB limit
         toast({
           variant: "destructive",
           title: "Ukuran File Terlalu Besar",
@@ -244,7 +245,7 @@ function OrderTable({
       const printContent = `
                 <html>
                 <head>
-                    <title>Cetak Label Pengiriman - ${order.id}</title>
+                    <title>Cetak Label Pengiriman - ${order.displayId || order.id}</title>
                     <style>
                         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
                         body {
@@ -332,7 +333,7 @@ function OrderTable({
                             </div>
                             <div class="order-id">
                                 <h2>Order ID</h2>
-                                <p>#${order.id}</p>
+                                <p>#${order.displayId || order.id}</p>
                             </div>
                         </div>
                         <div class="address-section">
@@ -377,10 +378,18 @@ function OrderTable({
 
     if (newStatus === 'Processing') {
       title = "Setujui Pembayaran?";
-      description = `Apakah Anda yakin ingin menyetujui pembayaran untuk pesanan #${orderId}? Pesanan akan dilanjutkan ke tahap proses.`;
+      // We need to fetch the order from the state to get displayId because only orderId is passed to this function
+      // But we can simplify by just using the passed orderId if finding it is too expensive, 
+      // however, the function is inside the component so we can find it.
+      const order = orders.find(o => o.id === orderId);
+      const displayId = order?.displayId || orderId;
+
+      description = `Apakah Anda yakin ingin menyetujui pembayaran untuk pesanan #${displayId}? Pesanan akan dilanjutkan ke tahap proses.`;
     } else if (newStatus === 'Re-upload Required') {
       title = "Minta Upload Ulang?";
-      description = `Apakah Anda yakin ingin meminta pelanggan untuk mengunggah ulang bukti pembayaran untuk pesanan #${orderId}?`;
+      const order = orders.find(o => o.id === orderId);
+      const displayId = order?.displayId || orderId;
+      description = `Apakah Anda yakin ingin meminta pelanggan untuk mengunggah ulang bukti pembayaran untuk pesanan #${displayId}?`;
     }
 
     setConfirmationDialog({
@@ -465,7 +474,7 @@ function OrderTable({
                   <td className="font-medium">
                     <div className="flex items-center gap-2">
                       <Link href={`/order-detail/${order.id}`} className="text-primary hover:underline font-mono">
-                        {order.id}
+                        {order.displayId || order.id}
                       </Link>
                     </div>
                   </td>
@@ -626,7 +635,7 @@ function OrderTable({
                         </button>
                         <button
                           className="btn btn-sm btn-success w-full mt-1"
-                          onClick={() => requestConfirmation(order.id, 'Cancelled', 'Konfirmasi Pengembalian Dana', `Apakah Anda sudah mentransfer pengembalian dana untuk pesanan #${order.id}? Pesanan akan ditandai sebagai "Cancelled".`)}
+                          onClick={() => requestConfirmation(order.id, 'Cancelled', 'Konfirmasi Pengembalian Dana', `Apakah Anda sudah mentransfer pengembalian dana untuk pesanan #${order.displayId || order.id}? Pesanan akan ditandai sebagai "Cancelled".`)}
                         >
                           <CheckCircle className="w-3.5 h-3.5" />
                           <span>Refund Selesai</span>
@@ -705,7 +714,7 @@ function OrderTable({
                 <Truck className="w-5 h-5" />
                 <span>Masukkan Kode Pengiriman</span>
               </h3>
-              <p className="text-base-content/70 mb-4">Pesanan #{selectedOrder?.id}</p>
+              <p className="text-base-content/70 mb-4">Pesanan #{selectedOrder?.displayId || selectedOrder?.id}</p>
               <div className="space-y-4">
                 <div>
                   <label htmlFor="shipping-name" className="label font-medium">
@@ -787,7 +796,7 @@ function OrderTable({
             >
               <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
                 <X className="w-5 h-5 text-error" />
-                <span>Batalkan Pesanan #{selectedOrder?.id}</span>
+                <span>Batalkan Pesanan #{selectedOrder?.displayId || selectedOrder?.id}</span>
               </h3>
               <div className="py-2 space-y-4">
                 <p>Anda yakin ingin membatalkan pesanan ini?</p>

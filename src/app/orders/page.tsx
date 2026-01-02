@@ -158,7 +158,7 @@ export default function OrdersPage() {
                                                         <div className="flex-1 min-w-0">
                                                             <div className="flex items-center gap-2 mb-1">
                                                                 <span className="font-mono text-sm text-base-content/60">
-                                                                    #{order.id.substring(0, 12)}...
+                                                                    #{order.displayId || order.id.substring(0, 12) + (order.displayId ? '' : '...')}
                                                                 </span>
                                                                 <span className={`badge ${getStatusColor(order.status)} gap-1`}>
                                                                     {getStatusIcon(order.status)}

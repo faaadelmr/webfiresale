@@ -124,6 +124,8 @@ model FlashSale {
 
 model Order {
   id              String       @id @default(cuid())
+  displayId       String?      @unique
+  productId       String?
   userId          String
   status          String       @default("Pending") // Pending, Processing, Shipped, Delivered, Cancelled, etc.
   totalAmount     Decimal

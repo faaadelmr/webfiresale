@@ -86,6 +86,7 @@ function EnhancedOrderTable({
     if (!searchTerm) return true;
     const lowercasedTerm = searchTerm.toLowerCase();
     return (
+      order.displayId?.toLowerCase().includes(lowercasedTerm) ||
       order.id.toLowerCase().includes(lowercasedTerm) ||
       order.customerName.toLowerCase().includes(lowercasedTerm) ||
       order.customerEmail.toLowerCase().includes(lowercasedTerm) ||
@@ -186,7 +187,7 @@ function EnhancedOrderTable({
       const printContent = `
           <html>
           <head>
-              <title>Cetak Label Pengiriman - ${order.id}</title>
+              <title>Cetak Label Pengiriman - ${order.displayId || order.id}</title>
               <style>
                   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
                   body { 
@@ -284,7 +285,7 @@ function EnhancedOrderTable({
                       </div>
                       <div class="order-id">
                           <h2>Order ID</h2>
-                          <p>#${order.id}</p>
+                          <p>#${order.displayId || order.id}</p>
                       </div>
                   </div>
                   <div class="address-section">
@@ -388,7 +389,7 @@ function EnhancedOrderTable({
               </TableCell>
               <TableCell className="font-medium">
                 <Link href={`/order-detail/${order.id}`} className="text-primary hover:underline">
-                  {order.id}
+                  {order.displayId || order.id}
                 </Link>
               </TableCell>
               <TableCell>
@@ -502,7 +503,7 @@ function EnhancedOrderTable({
                 )}
                 {order.status === 'Refund Processing' && (
                   <div className="flex flex-col gap-2">
-                    <Button variant="default" size="sm" onClick={() => requestConfirmation(order.id, 'Cancelled', 'Konfirmasi Pengembalian Dana', `Apakah Anda sudah mentransfer pengembalian dana untuk pesanan #${order.id}? Pesanan akan ditandai sebagai "Cancelled" (Stok dikembalikan).`)}>
+                    <Button variant="default" size="sm" onClick={() => requestConfirmation(order.id, 'Cancelled', 'Konfirmasi Pengembalian Dana', `Apakah Anda sudah mentransfer pengembalian dana untuk pesanan #${order.displayId || order.id}? Pesanan akan ditandai sebagai "Cancelled" (Stok dikembalikan).`)}>
                       <CheckCircle className="mr-2 h-4 w-4" />
                       Refund Selesai
                     </Button>
@@ -552,7 +553,7 @@ function EnhancedOrderTable({
       <Dialog open={shippingDialogOpen} onOpenChange={setShippingDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Masukkan Kode Pengiriman untuk Pesanan #{selectedOrder?.id}</DialogTitle>
+            <DialogTitle>Masukkan Kode Pengiriman untuk Pesanan #{selectedOrder?.displayId || selectedOrder?.id}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -603,7 +604,7 @@ function EnhancedOrderTable({
       <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Batalkan Pesanan #{selectedOrder?.id}</DialogTitle>
+            <DialogTitle><span>Batalkan Pesanan #{selectedOrder?.displayId || selectedOrder?.id}</span></DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-4">
             <p>Anda yakin ingin membatalkan pesanan ini?</p>
@@ -705,7 +706,7 @@ export default function OrdersPage() {
 
       const data = await response.json();
       updateOrderInState(data.order);
-      toast({ title: "Status Diperbarui", description: `Pesanan #${orderId} diubah menjadi ${newStatus}` });
+      toast({ title: "Status Diperbarui", description: `Pesanan #${data.order.displayId || orderId} diubah menjadi ${newStatus}` });
     } catch (error) {
       toast({ title: "Gagal Mengubah Status", description: "Terjadi kesalahan server.", variant: "destructive" });
     }
@@ -726,7 +727,7 @@ export default function OrdersPage() {
 
       const data = await response.json();
       updateOrderInState(data.order);
-      toast({ title: "Pesanan Dibatalkan", description: `Pesanan #${orderId} telah dibatalkan.` });
+      toast({ title: "Pesanan Dibatalkan", description: `Pesanan #${data.order.displayId || orderId} telah dibatalkan.` });
     } catch (error) {
       toast({ title: "Gagal Membatalkan", description: "Terjadi kesalahan server.", variant: "destructive" });
     }
@@ -762,7 +763,7 @@ export default function OrdersPage() {
 
       const data = await response.json();
       updateOrderInState(data.order);
-      toast({ title: "Resi Ditambahkan", description: `Pesanan #${orderId} telah dikirim.` });
+      toast({ title: "Resi Ditambahkan", description: `Pesanan #${data.order.displayId || orderId} telah dikirim.` });
     } catch (error) {
       toast({ title: "Gagal Menambah Resi", description: "Terjadi kesalahan server.", variant: "destructive" });
     }
