@@ -247,7 +247,23 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!orderData || !orderData.items || orderData.items.length === 0) {
-      return new Response(JSON.stringify({ message: 'Invalid order data' }), {
+      return new Response(JSON.stringify({ message: 'Invalid order data: missing items' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Validate address
+    if (!orderData.address) {
+      return new Response(JSON.stringify({ message: 'Invalid order data: missing address' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Validate address has required fields
+    if (!orderData.address.id && (!orderData.address.fullName || !orderData.address.street || !orderData.address.cityId)) {
+      return new Response(JSON.stringify({ message: 'Invalid order data: incomplete address' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -362,11 +378,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Create order in database
-    // Create order in database
     const settings = await prisma.generalSettings.findFirst();
     // paymentTimeLimit is in minutes per schema
     const paymentDeadlineMinutes = settings?.paymentTimeLimit || 24 * 60; // Default to 24h if missing
 
+    // Use increased timeout for complex transactions (30 seconds)
     const createdOrder = await prisma.$transaction(async (tx) => {
       // Ensure address exists
       let addressId = orderData.address.id;
@@ -437,25 +453,34 @@ export async function POST(request: NextRequest) {
 
       // Create order items
       for (const item of orderData.items) {
+        const itemPrice = item.product.flashSalePrice || item.product.originalPrice || 0;
+
         await tx.orderItem.create({
           data: {
             orderId: order.id,
             productId: item.product.id,
             quantity: item.quantity,
-            price: new Decimal(item.product.flashSalePrice.toString()),
+            price: new Decimal(itemPrice.toString()),
           },
         });
 
         // Update flash sale sold count if this is a flash sale item
         if (item.product.flashSaleId) {
-          await tx.flashSale.update({
+          // Check if flash sale exists before updating
+          const flashSaleExists = await tx.flashSale.findUnique({
             where: { id: item.product.flashSaleId },
-            data: {
-              sold: {
-                increment: item.quantity,
-              },
-            },
           });
+
+          if (flashSaleExists) {
+            await tx.flashSale.update({
+              where: { id: item.product.flashSaleId },
+              data: {
+                sold: {
+                  increment: item.quantity,
+                },
+              },
+            });
+          }
         }
       }
 
@@ -511,6 +536,9 @@ export async function POST(request: NextRequest) {
       }
 
       return order;
+    }, {
+      maxWait: 10000, // Maximum time to wait for transaction to start (10s)
+      timeout: 30000, // Maximum time for the transaction to complete (30s)
     });
 
     return new Response(JSON.stringify({
@@ -520,35 +548,44 @@ export async function POST(request: NextRequest) {
       status: 201,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating order:', error);
 
     // More specific error handling
-    if (error instanceof Error) {
-      if (error.message.includes('P2003')) {
-        // Foreign key constraint error
-        return new Response(JSON.stringify({
-          message: 'Invalid data provided - foreign key constraint violation',
-          error: error.message
-        }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      } else if (error.message.includes('P2002')) {
-        // Unique constraint error
-        return new Response(JSON.stringify({
-          message: 'Duplicate entry not allowed',
-          error: error.message
-        }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
+    const errorMessage = error?.message || String(error) || 'Unknown error';
+
+    if (errorMessage.includes('P2003')) {
+      // Foreign key constraint error
+      return new Response(JSON.stringify({
+        message: 'Data produk atau alamat tidak valid',
+        error: errorMessage
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    } else if (errorMessage.includes('P2002')) {
+      // Unique constraint error
+      return new Response(JSON.stringify({
+        message: 'Data duplikat tidak diperbolehkan',
+        error: errorMessage
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    } else if (errorMessage.includes('P2025')) {
+      // Record not found
+      return new Response(JSON.stringify({
+        message: 'Data tidak ditemukan di database',
+        error: errorMessage
+      }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     return new Response(JSON.stringify({
-      message: 'Internal server error',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      message: errorMessage,
+      error: errorMessage
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },

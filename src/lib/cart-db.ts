@@ -65,11 +65,11 @@ export async function getOrCreateCart(userId: string) {
 }
 
 /**
- * Add item to cart
+ * Add item to cart with flash sale limit validation
  */
 export async function addItemToCart(userId: string, productId: string, quantity: number, price: number, flashSaleId?: string) {
   try {
-    await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       // Get or create the user's cart
       const cart = await tx.cart.upsert({
         where: { userId },
@@ -79,43 +79,109 @@ export async function addItemToCart(userId: string, productId: string, quantity:
         update: {},
       });
 
-      // Check if the item already exists in the cart
-      const existingCartItem = await tx.cartItem.findFirst({
-        where: {
-          cartId: cart.id,
-          productId,
-          flashSaleId: flashSaleId || null, // Use null if no flashSaleId provided
-        },
-      });
-
-      if (existingCartItem) {
-        // Update quantity if item already exists
-        await tx.cartItem.update({
-          where: { id: existingCartItem.id },
-          data: {
-            quantity: { increment: quantity },
-            price: new Decimal(price),
-          },
+      // If this is a flash sale item, validate the limits
+      if (flashSaleId) {
+        const flashSale = await tx.flashSale.findUnique({
+          where: { id: flashSaleId },
         });
-      } else {
-        // Add new item to cart
-        await tx.cartItem.create({
-          data: {
+
+        if (!flashSale) {
+          throw new Error('Flash sale not found');
+        }
+
+        // Check if flash sale is still active
+        const now = new Date();
+        if (now < flashSale.startDate || now > flashSale.endDate) {
+          throw new Error('Flash sale is not active');
+        }
+
+        // Check available stock
+        const availableStock = flashSale.limitedQuantity - flashSale.sold;
+        if (availableStock <= 0) {
+          throw new Error('Flash sale is sold out');
+        }
+
+        // Check existing quantity in cart for this flash sale product
+        const existingCartItem = await tx.cartItem.findFirst({
+          where: {
             cartId: cart.id,
             productId,
-            quantity,
-            price: new Decimal(price),
-            flashSaleId: flashSaleId || null,
+            flashSaleId,
           },
         });
+
+        const currentCartQuantity = existingCartItem?.quantity || 0;
+        const newTotalQuantity = currentCartQuantity + quantity;
+
+        // Check max order quantity limit
+        if (flashSale.maxOrderQuantity && newTotalQuantity > flashSale.maxOrderQuantity) {
+          throw new Error(`Maximum order quantity is ${flashSale.maxOrderQuantity}. You already have ${currentCartQuantity} in your cart.`);
+        }
+
+        // Check against available stock
+        if (newTotalQuantity > availableStock) {
+          throw new Error(`Only ${availableStock} items available. You already have ${currentCartQuantity} in your cart.`);
+        }
+
+        // Update or create cart item
+        if (existingCartItem) {
+          await tx.cartItem.update({
+            where: { id: existingCartItem.id },
+            data: {
+              quantity: newTotalQuantity,
+              price: new Decimal(price),
+            },
+          });
+        } else {
+          await tx.cartItem.create({
+            data: {
+              cartId: cart.id,
+              productId,
+              quantity,
+              price: new Decimal(price),
+              flashSaleId,
+            },
+          });
+        }
+      } else {
+        // Regular product (non-flash sale)
+        const existingCartItem = await tx.cartItem.findFirst({
+          where: {
+            cartId: cart.id,
+            productId,
+            flashSaleId: null,
+          },
+        });
+
+        if (existingCartItem) {
+          await tx.cartItem.update({
+            where: { id: existingCartItem.id },
+            data: {
+              quantity: { increment: quantity },
+              price: new Decimal(price),
+            },
+          });
+        } else {
+          await tx.cartItem.create({
+            data: {
+              cartId: cart.id,
+              productId,
+              quantity,
+              price: new Decimal(price),
+              flashSaleId: null,
+            },
+          });
+        }
       }
+
+      return { success: true };
     });
 
     // Return updated cart
     return await getUserCart(userId);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error adding item to cart:', error);
-    throw new Error('Failed to add item to cart');
+    throw new Error(error.message || 'Failed to add item to cart');
   }
 }
 
@@ -142,13 +208,50 @@ export async function removeItemFromCart(userId: string, cartItemId: string) {
 }
 
 /**
- * Update item quantity in cart
+ * Update item quantity in cart with flash sale limit validation
  */
 export async function updateCartItemQuantity(userId: string, cartItemId: string, newQuantity: number) {
   try {
     if (newQuantity <= 0) {
       // Remove item if quantity is 0 or less
       return await removeItemFromCart(userId, cartItemId);
+    }
+
+    // Get the cart item first to check if it's a flash sale item
+    const cartItem = await prisma.cartItem.findUnique({
+      where: { id: cartItemId },
+      include: {
+        cart: true,
+        flashSale: true,
+      },
+    });
+
+    if (!cartItem || cartItem.cart.userId !== userId) {
+      throw new Error('Cart item not found');
+    }
+
+    // If this is a flash sale item, validate the limits
+    if (cartItem.flashSaleId && cartItem.flashSale) {
+      const flashSale = cartItem.flashSale;
+
+      // Check if flash sale is still active
+      const now = new Date();
+      if (now < flashSale.startDate || now > flashSale.endDate) {
+        throw new Error('Flash sale is no longer active');
+      }
+
+      // Check available stock
+      const availableStock = flashSale.limitedQuantity - flashSale.sold;
+
+      // Check max order quantity limit
+      if (flashSale.maxOrderQuantity && newQuantity > flashSale.maxOrderQuantity) {
+        throw new Error(`Maximum order quantity is ${flashSale.maxOrderQuantity}`);
+      }
+
+      // Check against available stock
+      if (newQuantity > availableStock) {
+        throw new Error(`Only ${availableStock} items available`);
+      }
     }
 
     const updatedItem = await prisma.cartItem.update({
@@ -169,9 +272,9 @@ export async function updateCartItemQuantity(userId: string, cartItemId: string,
 
     // Return updated cart
     return await getUserCart(userId);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating cart item quantity:', error);
-    throw new Error('Failed to update cart item quantity');
+    throw new Error(error.message || 'Failed to update cart item quantity');
   }
 }
 

@@ -1,6 +1,8 @@
 "use client";
 import { useState, useEffect, use } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Bid {
@@ -44,6 +46,8 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
   const [winner, setWinner] = useState<{ user: string, amount: number } | null>(null);
   const [isHighestBidder, setIsHighestBidder] = useState(false);
   const { toast } = useToast();
+  const { data: session, status } = useSession();
+  const router = useRouter();
 
   // Fetch auction from API
   const fetchAuction = async () => {
@@ -163,6 +167,16 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
   const handleBid = async () => {
     if (!auction || auctionEnded) return;
 
+    // Check if user is logged in
+    if (status !== 'authenticated') {
+      toast({
+        title: 'Silakan Login',
+        description: 'Anda harus login terlebih dahulu untuk menempatkan tawaran.',
+      });
+      router.push(`/login?callbackUrl=/auction/${id}`);
+      return;
+    }
+
     const newBid = parseInt(bidAmount);
     if (isNaN(newBid) || newBid <= currentBid) {
       toast({
@@ -199,6 +213,16 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
 
   const handleBuyNow = async () => {
     if (!auction || !auction.maxBid) return;
+
+    // Check if user is logged in
+    if (status !== 'authenticated') {
+      toast({
+        title: 'Silakan Login',
+        description: 'Anda harus login terlebih dahulu untuk membeli produk.',
+      });
+      router.push(`/login?callbackUrl=/auction/${id}`);
+      return;
+    }
 
     try {
       const response = await fetch(`/api/auctions/${auction.id}/bids`, {

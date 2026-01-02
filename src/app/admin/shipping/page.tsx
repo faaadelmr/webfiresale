@@ -1,27 +1,34 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { PlusCircle, Edit, Trash2 } from "lucide-react";
+import { PlusCircle, Edit, Trash2, MapPin, DollarSign, ChevronDown, ChevronUp, X, Plus, Check } from "lucide-react";
 
 import { formatPrice } from "@/lib/utils";
 import type { ShippingOption } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { getAllCities } from "@/lib/regions";
 
+interface ShippingZone {
+  cost: number;
+  cities: { id: string; cityId: string; name: string }[];
+}
+
 export default function ShippingPage() {
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [currentOption, setCurrentOption] = useState<ShippingOption | null>(null);
-  const [city, setCity] = useState(""); // city name for display purposes
-  const [cityId, setCityId] = useState(""); // city ID for database storage
-  const [cost, setCost] = useState("");
+  const [zones, setZones] = useState<ShippingZone[]>([]);
+  const [expandedZone, setExpandedZone] = useState<number | null>(null);
+  const [isAddZoneDialogOpen, setIsAddZoneDialogOpen] = useState(false);
+  const [isAddCityDialogOpen, setIsAddCityDialogOpen] = useState(false);
+  const [selectedZoneCost, setSelectedZoneCost] = useState<number | null>(null);
+  const [newZoneCost, setNewZoneCost] = useState("");
+  const [citySearch, setCitySearch] = useState("");
+  const [selectedCities, setSelectedCities] = useState<{ id: string; name: string }[]>([]);
   const [filteredCities, setFilteredCities] = useState<any[]>([]);
-  const [showCitySuggestions, setShowCitySuggestions] = useState(false);
   const { toast } = useToast();
 
-  // Extract cities with both name and ID from regions data for the input suggestions
   const allCities = getAllCities();
 
+  // Fetch shipping options and group by cost
   useEffect(() => {
     const fetchShippingOptions = async () => {
       try {
@@ -29,282 +36,515 @@ export default function ShippingPage() {
         if (response.ok) {
           const options = await response.json();
           setShippingOptions(options);
-        } else {
-          console.error('Failed to fetch shipping options:', response.statusText);
-          // Fallback to empty array if API fails
-          setShippingOptions([]);
+
+          // Group by cost to create zones
+          const zoneMap = new Map<number, ShippingZone>();
+          options.forEach((option: ShippingOption) => {
+            const cost = option.cost;
+            const cityName = allCities.find(c => c.id === option.cityId)?.name || option.cityId;
+
+            if (zoneMap.has(cost)) {
+              zoneMap.get(cost)!.cities.push({ id: option.id, cityId: option.cityId, name: cityName });
+            } else {
+              zoneMap.set(cost, {
+                cost,
+                cities: [{ id: option.id, cityId: option.cityId, name: cityName }]
+              });
+            }
+          });
+
+          // Sort zones by cost
+          const sortedZones = Array.from(zoneMap.values()).sort((a, b) => a.cost - b.cost);
+          setZones(sortedZones);
         }
       } catch (error) {
         console.error('Error fetching shipping options:', error);
-        // Fallback to empty array if API fails
-        setShippingOptions([]);
       }
     };
 
     fetchShippingOptions();
   }, []);
 
-  // Filter cities based on user input
+  // Filter cities for search
   useEffect(() => {
-    if (city.trim() === "") {
+    if (citySearch.trim() === "") {
       setFilteredCities([]);
       return;
     }
 
+    // Get already added city IDs for the selected zone
+    const existingCityIds = new Set(
+      shippingOptions
+        .filter(o => o.cost === selectedZoneCost)
+        .map(o => o.cityId)
+    );
+
+    // Also exclude already selected cities in dialog
+    const selectedCityIds = new Set(selectedCities.map(c => c.id));
+
     const results = allCities
       .filter(cityObj =>
-        cityObj.name.toLowerCase().includes(city.toLowerCase())
+        cityObj.name.toLowerCase().includes(citySearch.toLowerCase()) &&
+        !existingCityIds.has(cityObj.id) &&
+        !selectedCityIds.has(cityObj.id)
       )
-      .slice(0, 10); // Limit to 10 suggestions
+      .slice(0, 10);
 
     setFilteredCities(results);
-  }, [city, allCities]);
+  }, [citySearch, allCities, shippingOptions, selectedZoneCost, selectedCities]);
 
-  const saveOptionsToStateAndStorage = (options: ShippingOption[]) => {
-    setShippingOptions(options);
+  const handleAddZone = () => {
+    setNewZoneCost("");
+    setSelectedCities([]);
+    setCitySearch("");
+    setIsAddZoneDialogOpen(true);
   };
 
-  const handleAdd = () => {
-    setCurrentOption(null);
-    setCity("");
-    setCost("");
-    setShowCitySuggestions(false);
-    setIsDialogOpen(true);
+  const handleAddCitiesToZone = (cost: number) => {
+    setSelectedZoneCost(cost);
+    setSelectedCities([]);
+    setCitySearch("");
+    setIsAddCityDialogOpen(true);
   };
 
-  const handleEdit = (option: ShippingOption) => {
-    setCurrentOption(option);
-    // Since we're now using cityId, look up the city name for display
-    const cityObj = allCities.find(c => c.id === option.cityId);
-    setCity(cityObj ? cityObj.name : option.cityId); // Display name if found, else ID
-    setCityId(option.cityId);
-    setCost(String(option.cost));
-    setShowCitySuggestions(false);
-    setIsDialogOpen(true);
+  const handleSelectCity = (city: { id: string; name: string }) => {
+    setSelectedCities(prev => [...prev, city]);
+    setCitySearch("");
+    setFilteredCities([]);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleRemoveSelectedCity = (cityId: string) => {
+    setSelectedCities(prev => prev.filter(c => c.id !== cityId));
+  };
+
+  const handleSaveNewZone = async () => {
+    const cost = Number(newZoneCost);
+    if (isNaN(cost) || cost <= 0) {
+      toast({
+        title: "Harga Tidak Valid",
+        description: "Masukkan harga yang valid.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (selectedCities.length === 0) {
+      toast({
+        title: "Pilih Kota",
+        description: "Pilih minimal satu kota untuk zona ini.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check if zone with this cost already exists
+    if (zones.some(z => z.cost === cost)) {
+      toast({
+        title: "Zona Sudah Ada",
+        description: "Zona dengan harga ini sudah ada. Tambahkan kota ke zona yang sudah ada.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
-      const response = await fetch(`/api/admin/shipping-options?id=${id}`, {
+      // Add all selected cities with this cost
+      for (const city of selectedCities) {
+        await fetch('/api/admin/shipping-options', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cityId: city.id, cost })
+        });
+      }
+
+      toast({ title: `Zona ${formatPrice(cost)} berhasil dibuat dengan ${selectedCities.length} kota` });
+
+      // Refresh data
+      const response = await fetch('/api/admin/shipping-options');
+      if (response.ok) {
+        const options = await response.json();
+        setShippingOptions(options);
+        refreshZones(options);
+      }
+
+      setIsAddZoneDialogOpen(false);
+    } catch (error) {
+      console.error('Error creating zone:', error);
+      toast({
+        title: "Gagal membuat zona",
+        description: "Terjadi kesalahan saat membuat zona baru.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleSaveNewCities = async () => {
+    if (selectedCities.length === 0 || selectedZoneCost === null) {
+      toast({
+        title: "Pilih Kota",
+        description: "Pilih minimal satu kota untuk ditambahkan.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Add all selected cities with this cost
+      for (const city of selectedCities) {
+        await fetch('/api/admin/shipping-options', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cityId: city.id, cost: selectedZoneCost })
+        });
+      }
+
+      toast({ title: `${selectedCities.length} kota berhasil ditambahkan ke zona ${formatPrice(selectedZoneCost)}` });
+
+      // Refresh data
+      const response = await fetch('/api/admin/shipping-options');
+      if (response.ok) {
+        const options = await response.json();
+        setShippingOptions(options);
+        refreshZones(options);
+      }
+
+      setIsAddCityDialogOpen(false);
+    } catch (error) {
+      console.error('Error adding cities:', error);
+      toast({
+        title: "Gagal menambahkan kota",
+        description: "Terjadi kesalahan saat menambahkan kota.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteCity = async (optionId: string, cityName: string) => {
+    try {
+      const response = await fetch(`/api/admin/shipping-options?id=${optionId}`, {
         method: 'DELETE',
       });
 
       if (response.ok) {
-        const updatedOptions = shippingOptions.filter((option) => option.id !== id);
-        saveOptionsToStateAndStorage(updatedOptions);
-        toast({ title: "Opsi Pengiriman Dihapus" });
-      } else {
-        const errorData = await response.json();
-        toast({
-          title: "Gagal menghapus opsi pengiriman",
-          description: errorData.message || "Terjadi kesalahan saat menghapus opsi pengiriman",
-          variant: "destructive"
-        });
+        toast({ title: `${cityName} berhasil dihapus` });
+
+        // Refresh data
+        const refreshResponse = await fetch('/api/admin/shipping-options');
+        if (refreshResponse.ok) {
+          const options = await refreshResponse.json();
+          setShippingOptions(options);
+          refreshZones(options);
+        }
       }
     } catch (error) {
-      console.error('Error deleting shipping option:', error);
+      console.error('Error deleting city:', error);
       toast({
-        title: "Gagal menghapus opsi pengiriman",
-        description: "Terjadi kesalahan saat menghapus opsi pengiriman",
+        title: "Gagal menghapus kota",
+        description: "Terjadi kesalahan saat menghapus kota.",
         variant: "destructive"
       });
     }
   };
 
-  const handleSave = async () => {
-    // Validate that the city exists in the regions data (case-insensitive)
-    // Find the city object based on the name entered
-    const selectedCity = allCities.find(cityObj =>
-      cityObj.name.toLowerCase().trim() === city.toLowerCase().trim()
-    );
+  const handleDeleteZone = async (cost: number) => {
+    const zoneOptions = shippingOptions.filter(o => o.cost === cost);
 
-    if (!selectedCity) {
-      toast({
-        title: "Kota Tidak Valid",
-        description: "Silakan pilih kota dari daftar yang tersedia.",
-        variant: "destructive",
-      });
+    if (!confirm(`Hapus zona ${formatPrice(cost)} dengan ${zoneOptions.length} kota?`)) {
       return;
     }
-
-    if (!city || !cost || isNaN(Number(cost))) {
-      toast({
-        title: "Input Tidak Valid",
-        description: "Pastikan kota dan biaya diisi dengan benar.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Use the city ID from the selected city object
-    const selectedCityId = selectedCity.id;
 
     try {
-      if (currentOption) {
-        // Edit existing shipping option
-        const response = await fetch('/api/admin/shipping-options', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            ...currentOption, // Include the id
-            cityId: selectedCityId,
-            cost: Number(cost),
-          }),
+      // Delete all cities in this zone
+      for (const option of zoneOptions) {
+        await fetch(`/api/admin/shipping-options?id=${option.id}`, {
+          method: 'DELETE',
         });
+      }
 
-        if (response.ok) {
-          const updatedShippingOption = await response.json();
-          const updatedOptions = shippingOptions.map((option) =>
-            option.id === currentOption.id ? updatedShippingOption : option
-          );
-          saveOptionsToStateAndStorage(updatedOptions);
-          toast({ title: "Opsi Pengiriman Diperbarui" });
-        } else {
-          const errorData = await response.json();
-          toast({
-            title: "Gagal memperbarui opsi pengiriman",
-            description: errorData.message || "Terjadi kesalahan saat memperbarui opsi pengiriman",
-            variant: "destructive",
-          });
-          return;
-        }
-      } else {
-        // Add new shipping option
-        const response = await fetch('/api/admin/shipping-options', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            cityId: selectedCityId,
-            cost: Number(cost),
-          }),
-        });
+      toast({ title: `Zona ${formatPrice(cost)} berhasil dihapus` });
 
-        if (response.ok) {
-          const newShippingOption = await response.json();
-          saveOptionsToStateAndStorage([...shippingOptions, newShippingOption]);
-          toast({ title: "Opsi Pengiriman Ditambahkan" });
-        } else {
-          const errorData = await response.json();
-          toast({
-            title: "Gagal menambahkan opsi pengiriman",
-            description: errorData.message || "Terjadi kesalahan saat menambahkan opsi pengiriman",
-            variant: "destructive",
-          });
-          return;
-        }
+      // Refresh data
+      const response = await fetch('/api/admin/shipping-options');
+      if (response.ok) {
+        const options = await response.json();
+        setShippingOptions(options);
+        refreshZones(options);
       }
     } catch (error) {
-      console.error('Error saving shipping option:', error);
+      console.error('Error deleting zone:', error);
       toast({
-        title: currentOption ? "Gagal memperbarui opsi pengiriman" : "Gagal menambahkan opsi pengiriman",
-        description: "Terjadi kesalahan saat menyimpan opsi pengiriman",
+        title: "Gagal menghapus zona",
+        description: "Terjadi kesalahan saat menghapus zona.",
         variant: "destructive"
       });
-      return;
     }
-
-    setIsDialogOpen(false);
-    setShowCitySuggestions(false);
   };
 
-  const handleCitySelect = (selectedCity: any) => {
-    setCity(selectedCity.name);
-    setCityId(selectedCity.id);
-    setShowCitySuggestions(false);
+  const refreshZones = (options: ShippingOption[]) => {
+    const zoneMap = new Map<number, ShippingZone>();
+    options.forEach((option: ShippingOption) => {
+      const cost = option.cost;
+      const cityName = allCities.find(c => c.id === option.cityId)?.name || option.cityId;
+
+      if (zoneMap.has(cost)) {
+        zoneMap.get(cost)!.cities.push({ id: option.id, cityId: option.cityId, name: cityName });
+      } else {
+        zoneMap.set(cost, {
+          cost,
+          cities: [{ id: option.id, cityId: option.cityId, name: cityName }]
+        });
+      }
+    });
+
+    const sortedZones = Array.from(zoneMap.values()).sort((a, b) => a.cost - b.cost);
+    setZones(sortedZones);
   };
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Kelola Ongkos Kirim</h1>
-        <button className="btn btn-primary flex items-center gap-2" onClick={handleAdd}>
+        <div>
+          <h1 className="text-2xl font-bold">Kelola Ongkos Kirim</h1>
+          <p className="text-base-content/60 text-sm mt-1">Atur zona pengiriman berdasarkan harga</p>
+        </div>
+        <button className="btn btn-primary flex items-center gap-2" onClick={handleAddZone}>
           <PlusCircle className="h-4 w-4" />
-          Tambah Tujuan
+          Buat Zona Baru
         </button>
       </div>
-      <div className="bg-base-100 rounded-xl border border-base-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Kota Tujuan</th>
-                <th>Ongkos Kirim</th>
-                <th className="text-right">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {shippingOptions.map((option) => (
-                <tr key={option.id}>
-                  <td className="font-medium">
-                    {allCities.find(cityObj => cityObj.id === option.cityId)?.name || option.cityId}
-                  </td>
-                  <td>{formatPrice(option.cost)}</td>
-                  <td className="text-right space-x-2">
-                    <button className="btn btn-outline btn-sm" onClick={() => handleEdit(option)}>
-                      <Edit className="h-4 w-4" />
-                    </button>
-                    <button className="btn btn-error btn-sm" onClick={() => handleDelete(option.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+
+      {/* Zones List */}
+      <div className="space-y-4">
+        {zones.length === 0 ? (
+          <div className="bg-base-100 rounded-xl border border-base-200 p-12 text-center">
+            <MapPin className="h-12 w-12 mx-auto text-base-content/30 mb-4" />
+            <h3 className="text-lg font-semibold text-base-content/70">Belum Ada Zona Pengiriman</h3>
+            <p className="text-base-content/50 text-sm mt-1">Buat zona baru untuk mengatur ongkos kirim</p>
+          </div>
+        ) : (
+          zones.map((zone, idx) => (
+            <div key={zone.cost} className="bg-base-100 rounded-xl border border-base-200 overflow-hidden">
+              {/* Zone Header */}
+              <div
+                className="flex items-center justify-between p-4 cursor-pointer hover:bg-base-50 transition-colors"
+                onClick={() => setExpandedZone(expandedZone === idx ? null : idx)}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="bg-primary/10 text-primary rounded-lg p-3">
+                    <DollarSign className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-primary">{formatPrice(zone.cost)}</h3>
+                    <p className="text-sm text-base-content/60">{zone.cities.length} kota</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={(e) => { e.stopPropagation(); handleAddCitiesToZone(zone.cost); }}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Tambah Kota
+                  </button>
+                  <button
+                    className="btn btn-ghost btn-sm text-error"
+                    onClick={(e) => { e.stopPropagation(); handleDeleteZone(zone.cost); }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                  {expandedZone === idx ? (
+                    <ChevronUp className="h-5 w-5 text-base-content/50" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-base-content/50" />
+                  )}
+                </div>
+              </div>
+
+              {/* Cities List (Expandable) */}
+              {expandedZone === idx && (
+                <div className="border-t border-base-200 p-4 bg-base-50">
+                  <div className="flex flex-wrap gap-2">
+                    {zone.cities.map((city) => (
+                      <div
+                        key={city.id}
+                        className="flex items-center gap-2 bg-base-100 border border-base-200 rounded-full px-3 py-1.5 text-sm"
+                      >
+                        <MapPin className="h-3 w-3 text-base-content/50" />
+                        <span>{city.name}</span>
+                        <button
+                          className="text-error hover:bg-error/10 rounded-full p-0.5"
+                          onClick={() => handleDeleteCity(city.id, city.name)}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))
+        )}
       </div>
 
-      {isDialogOpen && (
+      {/* Add Zone Dialog */}
+      {isAddZoneDialogOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-base-100 rounded-xl p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">{currentOption ? "Edit" : "Tambah"} Opsi Pengiriman</h3>
-            <div className="py-4 space-y-4">
-              <div className="relative">
-                <label className="label font-medium">
-                  <span className="label-text">Kota Tujuan</span>
-                </label>
-                <input
-                  type="text"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  onFocus={() => setShowCitySuggestions(true)}
-                  placeholder="Cari kota..."
-                  className="input input-bordered w-full"
-                />
-                {showCitySuggestions && filteredCities.length > 0 && (
-                  <ul className="absolute z-10 mt-1 w-full bg-base-100 border border-base-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {filteredCities.map((cityObj, index) => (
-                      <li
-                        key={index}
-                        className="p-2 hover:bg-base-200 cursor-pointer"
-                        onMouseDown={() => handleCitySelect(cityObj)}
-                      >
-                        {cityObj.name}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+          <div className="bg-base-100 rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-4">Buat Zona Pengiriman Baru</h3>
+
+            <div className="space-y-4">
+              {/* Cost Input */}
               <div>
                 <label className="label font-medium">
-                  <span className="label-text">Ongkos Kirim</span>
+                  <span className="label-text">Harga Ongkos Kirim (Rp)</span>
                 </label>
                 <input
                   type="number"
-                  value={cost}
-                  onChange={(e) => setCost(e.target.value)}
-                  placeholder="e.g., 10000"
+                  value={newZoneCost}
+                  onChange={(e) => setNewZoneCost(e.target.value)}
+                  placeholder="e.g., 15000"
                   className="input input-bordered w-full"
                 />
               </div>
+
+              {/* City Search */}
+              <div>
+                <label className="label font-medium">
+                  <span className="label-text">Tambah Kota ke Zona Ini</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={citySearch}
+                    onChange={(e) => setCitySearch(e.target.value)}
+                    placeholder="Cari kota..."
+                    className="input input-bordered w-full"
+                  />
+                  {filteredCities.length > 0 && (
+                    <ul className="absolute z-10 mt-1 w-full bg-base-100 border border-base-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {filteredCities.map((city) => (
+                        <li
+                          key={city.id}
+                          className="p-2 hover:bg-base-200 cursor-pointer flex items-center gap-2"
+                          onClick={() => handleSelectCity(city)}
+                        >
+                          <MapPin className="h-4 w-4 text-base-content/50" />
+                          {city.name}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+
+              {/* Selected Cities */}
+              {selectedCities.length > 0 && (
+                <div>
+                  <label className="label font-medium">
+                    <span className="label-text">Kota Terpilih ({selectedCities.length})</span>
+                  </label>
+                  <div className="flex flex-wrap gap-2 p-3 bg-base-200 rounded-lg">
+                    {selectedCities.map((city) => (
+                      <div
+                        key={city.id}
+                        className="flex items-center gap-1 bg-primary text-primary-content rounded-full px-3 py-1 text-sm"
+                      >
+                        <Check className="h-3 w-3" />
+                        {city.name}
+                        <button
+                          className="ml-1 hover:bg-primary-focus rounded-full p-0.5"
+                          onClick={() => handleRemoveSelectedCity(city.id)}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="flex justify-end gap-2 pt-4">
-              <button className="btn btn-ghost" onClick={() => setIsDialogOpen(false)}>Batal</button>
-              <button className="btn btn-primary" onClick={handleSave}>Simpan</button>
+
+            <div className="flex justify-end gap-2 pt-6">
+              <button className="btn btn-ghost" onClick={() => setIsAddZoneDialogOpen(false)}>Batal</button>
+              <button className="btn btn-primary" onClick={handleSaveNewZone}>
+                Buat Zona ({selectedCities.length} kota)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Cities to Existing Zone Dialog */}
+      {isAddCityDialogOpen && selectedZoneCost !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-base-100 rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-2">Tambah Kota ke Zona</h3>
+            <p className="text-base-content/60 text-sm mb-4">Zona: {formatPrice(selectedZoneCost)}</p>
+
+            <div className="space-y-4">
+              {/* City Search */}
+              <div>
+                <label className="label font-medium">
+                  <span className="label-text">Cari dan Pilih Kota</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={citySearch}
+                    onChange={(e) => setCitySearch(e.target.value)}
+                    placeholder="Cari kota..."
+                    className="input input-bordered w-full"
+                  />
+                  {filteredCities.length > 0 && (
+                    <ul className="absolute z-10 mt-1 w-full bg-base-100 border border-base-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {filteredCities.map((city) => (
+                        <li
+                          key={city.id}
+                          className="p-2 hover:bg-base-200 cursor-pointer flex items-center gap-2"
+                          onClick={() => handleSelectCity(city)}
+                        >
+                          <MapPin className="h-4 w-4 text-base-content/50" />
+                          {city.name}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+
+              {/* Selected Cities */}
+              {selectedCities.length > 0 && (
+                <div>
+                  <label className="label font-medium">
+                    <span className="label-text">Kota Terpilih ({selectedCities.length})</span>
+                  </label>
+                  <div className="flex flex-wrap gap-2 p-3 bg-base-200 rounded-lg">
+                    {selectedCities.map((city) => (
+                      <div
+                        key={city.id}
+                        className="flex items-center gap-1 bg-primary text-primary-content rounded-full px-3 py-1 text-sm"
+                      >
+                        <Check className="h-3 w-3" />
+                        {city.name}
+                        <button
+                          className="ml-1 hover:bg-primary-focus rounded-full p-0.5"
+                          onClick={() => handleRemoveSelectedCity(city.id)}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-6">
+              <button className="btn btn-ghost" onClick={() => setIsAddCityDialogOpen(false)}>Batal</button>
+              <button className="btn btn-primary" onClick={handleSaveNewCities}>
+                Tambah {selectedCities.length} Kota
+              </button>
             </div>
           </div>
         </div>

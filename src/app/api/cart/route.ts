@@ -1,13 +1,13 @@
 import { NextRequest } from 'next/server';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { getServerSession } from 'next-auth';
-import { 
-  getOrCreateCart, 
-  addItemToCart, 
-  removeItemFromCart, 
-  updateCartItemQuantity, 
+import {
+  getOrCreateCart,
+  addItemToCart,
+  removeItemFromCart,
+  updateCartItemQuantity,
   clearUserCart,
-  formatCartForFrontend 
+  formatCartForFrontend
 } from '@/lib/cart-db';
 import { Decimal } from 'decimal.js';
 
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     // Get user's cart
     const cart = await getOrCreateCart(userId);
     const formattedCart = formatCartForFrontend(cart);
-    
+
     return new Response(JSON.stringify(formattedCart), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
@@ -66,15 +66,15 @@ export async function POST(request: NextRequest) {
   try {
     const updatedCart = await addItemToCart(userId, productId, quantity, price, flashSaleId);
     const formattedCart = formatCartForFrontend(updatedCart);
-    
+
     return new Response(JSON.stringify(formattedCart), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error adding item to cart:', error);
-    return new Response(JSON.stringify({ message: 'Internal server error' }), {
-      status: 500,
+    return new Response(JSON.stringify({ message: error.message || 'Internal server error' }), {
+      status: 400,
       headers: { 'Content-Type': 'application/json' },
     });
   }
@@ -136,10 +136,10 @@ export async function PUT(request: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
       });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating cart item:', error);
-    return new Response(JSON.stringify({ message: 'Internal server error' }), {
-      status: 500,
+    return new Response(JSON.stringify({ message: error.message || 'Internal server error' }), {
+      status: 400,
       headers: { 'Content-Type': 'application/json' },
     });
   }

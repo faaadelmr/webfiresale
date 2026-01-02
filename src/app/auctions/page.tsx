@@ -3,6 +3,8 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import placeholderImages from "@/lib/placeholder-images.json";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Star, Search, Gavel, Eye, Menu } from "lucide-react";
@@ -15,6 +17,7 @@ import {
     type CarouselApi,
 } from "@/components/ui/carousel";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 // Auction type matching API response
 interface Auction {
@@ -44,6 +47,9 @@ export default function AuctionsPage() {
     const [count, setCount] = React.useState(0);
     const [auctions, setAuctions] = React.useState<Auction[]>([]);
     const [loading, setLoading] = React.useState(true);
+    const { data: session, status } = useSession();
+    const router = useRouter();
+    const { toast } = useToast();
 
     // Fetch auctions from API
     React.useEffect(() => {
@@ -97,6 +103,18 @@ export default function AuctionsPage() {
             .join('')
             .substring(0, 2)
             .toUpperCase();
+    };
+
+    const handleBidClick = (e: React.MouseEvent, auctionId: string) => {
+        if (status !== 'authenticated') {
+            e.preventDefault();
+            toast({
+                title: 'Silakan Login',
+                description: 'Anda harus login terlebih dahulu untuk menempatkan tawaran.',
+            });
+            router.push(`/login?callbackUrl=/auctions/${auctionId}`);
+            return;
+        }
     };
 
     if (loading) {
@@ -181,7 +199,7 @@ export default function AuctionsPage() {
                                                     {isAuctionEnded(auction) ? (
                                                         <div className="badge badge-lg badge-neutral">Lelang Telah Berakhir</div>
                                                     ) : (
-                                                        <Link href={`/auctions/${auction.id}`} className="flex items-center gap-2 group">
+                                                        <Link href={`/auctions/${auction.id}`} onClick={(e) => handleBidClick(e, auction.id)} className="flex items-center gap-2 group">
                                                             <Button variant="ghost" size="icon" className="group rounded-full bg-error hover:bg-error/80 w-14 h-14 text-error-content transition-all duration-300 shadow-lg shadow-error/50 hover:scale-110">
                                                                 <ArrowRight className="h-6 w-6 transition-transform group-hover:translate-x-1" />
                                                             </Button>

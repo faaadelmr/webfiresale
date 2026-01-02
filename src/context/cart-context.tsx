@@ -166,30 +166,33 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         flashSaleId: product.flashSaleId || undefined,
       }),
     })
-      .then(response => {
+      .then(async response => {
         if (response.ok) {
           return response.json();
         }
-        throw new Error('Failed to sync with database');
+        // Parse error message from server
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to sync with database');
       })
       .then(data => {
         // Update local state with the latest cart from DB to ensure consistency
         setCartItems(data.cartItems);
+        toast({
+          title: "Item ditambahkan ke keranjang",
+          description: `${product.name} telah ditambahkan ke keranjang Anda.`,
+        });
       })
       .catch(error => {
         console.error('Error syncing cart with database:', error);
+        // Revert optimistic update by refreshing cart from server
+        loadCartFromDB();
         toast({
           title: "Gagal Menyimpan",
-          description: "Terjadi kesalahan menyimpan ke keranjang. Silakan coba lagi.",
+          description: error.message || "Terjadi kesalahan menyimpan ke keranjang. Silakan coba lagi.",
           variant: "destructive"
         });
       });
-
-    toast({
-      title: "Item ditambahkan ke keranjang",
-      description: `${product.name} telah ditambahkan ke keranjang Anda.`,
-    })
-  }, [toast, cartItems, isInitialized]);
+  }, [toast, cartItems, isInitialized, loadCartFromDB]);
 
   const removeFromCart = useCallback((productId: string) => {
     if (!isInitialized) {
