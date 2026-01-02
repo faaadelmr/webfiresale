@@ -1,35 +1,87 @@
 import { mockRegions } from './regions';
 
+// Create lookup maps for O(1) access
+// We use lazy initialization or immediate? Immediate is fine for module scope.
+// Using specific interface to ensure type safety if types are available, else inference.
+
+const provinceMap = new Map<string, string>();
+const cityMap = new Map<string, string>();
+const districtMap = new Map<string, string>();
+const villageMap = new Map<string, string>();
+
+let isIndexed = false;
+
+function ensureIndexes() {
+    if (isIndexed) return;
+
+    console.time('Building Region Indexes');
+
+    // Index Provinces
+    if (mockRegions.provinces) {
+        for (const p of mockRegions.provinces) {
+            provinceMap.set(p.id, p.name);
+        }
+    }
+
+    // Index Cities
+    if (mockRegions.cities) {
+        for (const c of mockRegions.cities) {
+            cityMap.set(c.id, c.name);
+        }
+    }
+
+    // Index Districts
+    if (mockRegions.districts) {
+        for (const d of mockRegions.districts) {
+            districtMap.set(d.id, d.name);
+        }
+    }
+
+    // Index Villages
+    if (mockRegions.villages) {
+        for (const v of mockRegions.villages) {
+            villageMap.set(v.id, v.name);
+        }
+    }
+
+    isIndexed = true;
+    console.timeEnd('Building Region Indexes');
+}
+
+// Initialize indexes immediately to avoid race conditions or lag on first request
+// However, in serverless, this runs on cold start.
+try {
+    ensureIndexes();
+} catch (e) {
+    console.error("Failed to index regions:", e);
+}
+
 /**
  * Get province name by ID
  */
 export function getProvinceName(provinceId: string): string {
-    const province = mockRegions.provinces.find(p => p.id === provinceId);
-    return province?.name || provinceId; // Fallback to ID if not found
+    return provinceMap.get(provinceId) || provinceId;
 }
 
 /**
  * Get city name by ID
  */
 export function getCityName(cityId: string): string {
-    const city = mockRegions.cities.find(c => c.id === cityId);
-    return city?.name || cityId; // Fallback to ID if not found
+    return cityMap.get(cityId) || cityId;
 }
 
 /**
  * Get district name by ID
  */
 export function getDistrictName(districtId: string): string {
-    const district = mockRegions.districts.find(d => d.id === districtId);
-    return district?.name || districtId; // Fallback to ID if not found
+    return districtMap.get(districtId) || districtId;
 }
 
 /**
  * Get village name by ID
  */
 export function getVillageName(villageId: string): string {
-    const village = mockRegions.villages.find(v => v.id === villageId);
-    return village?.name || villageId; // Fallback to ID if not found
+    return villageMap.get(villageId) || villageId;
 }
 
 /**
@@ -52,6 +104,8 @@ export function enrichAddressWithNames(address: {
     isDefault?: boolean;
     userId?: string;
 }) {
+    if (!isIndexed) ensureIndexes(); // Fallback safety
+
     return {
         ...address,
         province: getProvinceName(address.provinceId),

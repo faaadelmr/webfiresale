@@ -121,7 +121,10 @@ export async function GET(request: NextRequest) {
 
       return new Response(JSON.stringify(transformedOrders), {
         status: 200,
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=10, stale-while-revalidate=59'
+        },
       });
     } else {
       // For regular customers, only fetch their orders
