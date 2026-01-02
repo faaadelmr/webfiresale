@@ -614,48 +614,6 @@ export default function FlashSalePage() {
                             </div>
                         </motion.div>
                     </AnimatePresence>
-
-                    {/* Other Flash Sales Preview */}
-                    {flashSales.length > 1 && (
-                        <div className="mt-12">
-                            <h3 className="text-lg font-bold text-base-content mb-4 flex items-center gap-2">
-                                <Zap className="h-5 w-5 text-warning" />
-                                Flash Sale Lainnya
-                            </h3>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                {flashSales.filter((_, idx) => idx !== currentIndex).slice(0, 4).map((product, idx) => (
-                                    <button
-                                        key={product.id}
-                                        onClick={() => {
-                                            const newIdx = flashSales.findIndex(p => p.id === product.id);
-                                            setDirection(newIdx > currentIndex ? 1 : -1);
-                                            setCurrentIndex(newIdx);
-                                        }}
-                                        className="group bg-base-100/50 backdrop-blur-sm rounded-xl p-4 border border-base-content/10 hover:border-warning/50 hover:bg-base-100 transition-all text-left"
-                                    >
-                                        <div className="relative mb-3">
-                                            <Image
-                                                src={product.image || '/placeholder.png'}
-                                                alt={product.name}
-                                                width={100}
-                                                height={100}
-                                                className="w-full h-24 object-contain rounded-lg"
-                                            />
-                                            <div className="absolute top-1 right-1 bg-error text-white text-xs font-bold px-2 py-1 rounded-md">
-                                                -{calculateDiscount(product)}%
-                                            </div>
-                                        </div>
-                                        <p className="font-medium text-sm text-base-content truncate group-hover:text-warning transition-colors">
-                                            {product.name}
-                                        </p>
-                                        <p className="text-error font-bold text-sm">
-                                            {formatCurrency(product.flashSalePrice)}
-                                        </p>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
                 </div>
             </main>
         </div>
