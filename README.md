@@ -40,10 +40,10 @@ POSTGRES_URL_NON_POOLING="postgres://..."
 NEXT_PUBLIC_APP_NAME="WebFiresale" (nama toko yang akan ditampilkan)
 
 # --- Konfigurasi NextAuth ---
-# Kunci rahasia untuk enkripsi sesi (Generate dengan command: openssl rand -base64 32)
+# Kunci rahasia untuk enkripsi sesi (Generate dengan command: openssl rand -base64 32 atau melalui website: https://auth-secret-gen.vercel.app/)
 NEXTAUTH_SECRET="RAHASIA_ANDA_DISINI"
 
-# URL dasar aplikasi (Ganti dengan domain production saat deploy)
+# URL dasar aplikasi (Ganti dengan domain website saat deploy)
 NEXTAUTH_URL="http://localhost:3000"
 
 # --- Konfigurasi Supabase ---
@@ -60,10 +60,9 @@ SUPABASE_SERVICE_ROLE_KEY="KUNCI_SERVICE_ROLE_ANDA_(SANGAT_RAHASIA)"
 SUPABASE_SECRET_KEY="KUNCI_RAHASIA_LAINNYA"
 SUPABASE_PUBLISHABLE_KEY="KUNCI_PUBLISHABLE_ANDA"
 
-# --- Kredensial OAuth Provider (Opsional) ---
-# Diperlukan jika ingin mengaktifkan login dengan Google
-# GOOGLE_CLIENT_ID=
-# GOOGLE_CLIENT_SECRET=
+# Mengaktifkan login dengan Google
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
 ```
 
 ## 🚀 Instalasi & Setup (Menuju Production)
@@ -135,4 +134,3 @@ Jika Anda menjalankan perintah `npm run seed`, akun admin berikut akan dibuat:
 5.  Buat Pull Request.
 
 ---
-Dibangun dengan ❤️ oleh Tim MeryStuff
