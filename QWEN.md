@@ -54,7 +54,7 @@ WebFireSale is a comprehensive e-commerce platform built with Next.js 16 (App Ro
 
 5. **Database Integration**:
    - Prisma schema with multiple related models
-   - SQLite database as default (using DATABASE_URL environment variable)
+   - SQLite database as default (using POSTGRES_PRISMA_URL environment variable)
    - Secure password hashing with bcrypt
    - User profiles with detailed information (name, phone, date of birth, etc.)
    - Soft-delete functionality with isActive and deletedAt fields
@@ -263,7 +263,7 @@ WebFireSale is a comprehensive e-commerce platform built with Next.js 16 (App Ro
 
 The application requires the following environment variables in a `.env` file:
 
-- `DATABASE_URL`: SQLite or PostgreSQL connection string
+- `POSTGRES_PRISMA_URL`: SQLite or PostgreSQL connection string
 - `NEXTAUTH_SECRET`: Secret for NextAuth JWT
 - `NEXTAUTH_URL`: Application URL
 - OAuth provider credentials (if enabled):

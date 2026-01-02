@@ -1,10 +1,10 @@
 import type { Order } from './types';
-import { APP_NAME } from "@/lib/app-config";
+import { NEXT_PUBLIC_APP_NAME } from "@/lib/app-config";
 
 export async function printShippingLabel(order: Order) {
     // Fetch business settings for sender information
     let businessInfo = {
-        name: APP_NAME,
+        name: NEXT_PUBLIC_APP_NAME,
         address: 'Alamat belum diatur',
         city: '',
         phone: '',
@@ -19,7 +19,7 @@ export async function printShippingLabel(order: Order) {
             if (settings.businessAddress) {
                 const addr = settings.businessAddress;
                 businessInfo = {
-                    name: addr.fullName || APP_NAME,
+                    name: addr.fullName || NEXT_PUBLIC_APP_NAME,
                     address: `${addr.street}${addr.rtRwBlock ? ', ' + addr.rtRwBlock : ''}`,
                     city: `${addr.village || ''}, ${addr.district || ''}, ${addr.city || ''}, ${addr.province || ''} ${addr.postalCode || ''}`.trim(),
                     phone: addr.phone || '',

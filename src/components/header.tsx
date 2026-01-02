@@ -1,6 +1,6 @@
 "use client"
 
-import { APP_NAME } from "@/lib/app-config"
+import { NEXT_PUBLIC_APP_NAME } from "@/lib/app-config"
 import { Flame, LogOut, User, Bell, ShoppingBag, Search, Settings } from "lucide-react"
 import { CartDropdown } from "./cart-dropdown"
 
@@ -308,7 +308,7 @@ export function Header() {
           {businessLogo ? (
             <Image
               src={businessLogo}
-              alt={APP_NAME}
+              alt={NEXT_PUBLIC_APP_NAME}
               width={32}
               height={32}
               className="h-8 w-8 object-contain rounded-full"
@@ -319,7 +319,7 @@ export function Header() {
             </div>
           )}
           <span className="text-xl font-bold tracking-tight text-base-content">
-            {APP_NAME}
+            {NEXT_PUBLIC_APP_NAME}
           </span>
         </Link>
 

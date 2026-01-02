@@ -1,6 +1,6 @@
 "use client";
 
-import { APP_NAME } from "@/lib/app-config";
+import { NEXT_PUBLIC_APP_NAME } from "@/lib/app-config";
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Github, Globe, X, Sparkles, Star } from "lucide-react";
@@ -227,7 +227,7 @@ export function DeveloperEasterEgg() {
                                             animate={{ opacity: 1 }}
                                             transition={{ delay: 0.5 }}
                                         >
-                                            Creator of {APP_NAME} 🔥
+                                            Creator of {NEXT_PUBLIC_APP_NAME} 🔥
                                         </motion.p>
 
                                         {/* Buttons - Cartoon Style */}

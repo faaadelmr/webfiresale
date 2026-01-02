@@ -3,7 +3,7 @@
 
 import { signOut, useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { APP_NAME } from '@/lib/app-config';
+import { NEXT_PUBLIC_APP_NAME } from '@/lib/app-config';
 
 export default function DashboardNavbar() {
   const { data: session } = useSession();
@@ -50,7 +50,7 @@ export default function DashboardNavbar() {
   return (
     <div className="navbar bg-base-100 shadow-md">
       <div className="flex-1">
-        <Link href={user?.role === 'customer' ? '/' : '/admin'} className="btn btn-ghost text-xl">{APP_NAME}</Link>
+        <Link href={user?.role === 'customer' ? '/' : '/admin'} className="btn btn-ghost text-xl">{NEXT_PUBLIC_APP_NAME}</Link>
       </div>
       <div className="flex-none">
         <div className="dropdown dropdown-end">

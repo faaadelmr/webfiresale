@@ -45,7 +45,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ORDER_STATUS_STANDARD } from "@/lib/order-standards";
 
-import { APP_NAME } from "@/lib/app-config";
+import { NEXT_PUBLIC_APP_NAME } from "@/lib/app-config";
 
 // Enhanced OrderTable with search and filtering
 function EnhancedOrderTable({
@@ -151,7 +151,7 @@ function EnhancedOrderTable({
   const handlePrintShippingLabel = async (order: Order) => {
     // Fetch business settings for sender information
     let businessInfo = {
-      name: APP_NAME,
+      name: NEXT_PUBLIC_APP_NAME,
       address: 'Alamat belum diatur',
       city: '',
       phone: '',
@@ -166,7 +166,7 @@ function EnhancedOrderTable({
         if (settings.businessAddress) {
           const addr = settings.businessAddress;
           businessInfo = {
-            name: addr.fullName || APP_NAME,
+            name: addr.fullName || NEXT_PUBLIC_APP_NAME,
             address: `${addr.street}${addr.rtRwBlock ? ', ' + addr.rtRwBlock : ''}`,
             city: `${addr.village || ''}, ${addr.district || ''}, ${addr.city || ''}, ${addr.province || ''} ${addr.postalCode || ''}`.trim(),
             phone: addr.phone || '',

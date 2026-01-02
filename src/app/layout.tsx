@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import ClientLayout from './ClientLayout';
-import { APP_NAME } from '@/lib/app-config';
+import { NEXT_PUBLIC_APP_NAME } from '@/lib/app-config';
 
 export const metadata: Metadata = {
-  title: APP_NAME,
+  title: NEXT_PUBLIC_APP_NAME,
   description: 'Rebut barang yang kamu inginkan dengan cara lebih mudah dan effisien.',
 };
 

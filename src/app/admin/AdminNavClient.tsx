@@ -1,6 +1,6 @@
 "use client";
 
-import { APP_NAME } from "@/lib/app-config";
+import { NEXT_PUBLIC_APP_NAME } from "@/lib/app-config";
 import { Dispatch, SetStateAction, useState, useEffect } from "react";
 import {
   Flame, LayoutDashboard, Users, Package, ShoppingBasket, Zap, Truck, Settings, ChevronRight, Home, Palette, Ticket
@@ -80,7 +80,7 @@ export default function AdminNavClient({ mobile, setSidebarOpen, expanded = true
         {businessLogo ? (
           <Image
             src={businessLogo}
-            alt={APP_NAME}
+            alt={NEXT_PUBLIC_APP_NAME}
             width={40}
             height={40}
             className="h-10 w-10 object-contain rounded-xl"
@@ -91,7 +91,7 @@ export default function AdminNavClient({ mobile, setSidebarOpen, expanded = true
           </div>
         )}
         {(expanded || mobile) && (
-          <span className="text-lg font-bold">{APP_NAME}</span>
+          <span className="text-lg font-bold">{NEXT_PUBLIC_APP_NAME}</span>
         )}
       </div>
 
